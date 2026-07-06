@@ -1,0 +1,28 @@
+{
+  "agent": "hermes",
+  "agent_runtime": "windows",
+  "avatar_runtime": "windows",
+  "bridge_url": "http://127.0.0.1:8900",
+  "session": {
+    "chat_id": "avatar",
+    "user_id": "owner",
+    "user_name": "You",
+    "chat_name": "Avatar"
+  },
+  "relay": {
+    "host": "127.0.0.1",
+    "port": 8901,
+    "auth_secret": "",
+    "descriptor_label": "Avatar",
+    "descriptor_platform": "relay"
+  },
+  "openclaw": {
+    "url": "ws://127.0.0.1:18790",
+    "token": "",
+    "role": "backend",
+    "scopes": [
+      "operator.read",
+      "operator.write"
+    ]
+  }
+}

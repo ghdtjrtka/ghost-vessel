@@ -1,0 +1,44 @@
+# NOTE: .gitignore does NOT support inline (end-of-line) comments — a '#' after a
+# path becomes part of the pattern. Keep every comment on its own line.
+
+# ── personal avatar assets: NEVER shipped with the open-source engine ──
+ref/
+segments/*.mp4
+segments/web/
+expressions/
+expr_clean/
+vid/
+
+# ── production craft = commission moat: NEVER ship ──
+# render_recipe.json = exact driving frame windows/deltas per emotion.
+# manifest.json = the private avatar's segment list (source fields name driving windows).
+# EXPRESSION_CATALOG.md = frame-level emotion tagging of the driving clips.
+# The FORMAT is documented in docs/PRESET_FORMAT.md (public) instead.
+segments/render_recipe.json
+segments/manifest.json
+EXPRESSION_CATALOG.md
+AVATAR_AGENT_SPEC.md
+tools/
+docs/PRESET_BUILD.md
+tts/tts_config.json
+tts/voices/
+tts/test_out.wav
+tts/*.wav
+
+# ── private presets (presets/.gitignore also guards inside) ──
+presets/mina-default/
+
+# ── local runtime / state / generated ──
+tts/venv/
+stt/venv/
+**/__pycache__/
+*.log
+presets/active.txt
+presets/*/state.json
+presets/*/manifest.json
+bridge/connector_config.json
+dist/
+
+# ── OS noise ──
+Thumbs.db
+desktop.ini

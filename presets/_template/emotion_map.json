@@ -1,0 +1,18 @@
+{
+  "_comment": "Tune how YOUR avatar emotes. 'emotions' must match the segment names in avatar/manifest.json. 'emoji'/'keywords' infer emotion when the LLM emits no [tag] (fallback). Copy presets/mina-default/emotion_map.json as a fuller starting point.",
+  "emotions": ["happy", "smile", "excited", "smug", "pout", "surprise", "downcast", "concerned", "skeptical", "neutral"],
+  "aliases": { "joy": "happy", "sad": "downcast", "shocked": "surprise" },
+  "emoji": {
+    "excited": "😆🎉✨🔥",
+    "happy": "😊😍💖👍",
+    "smug": "😎😏",
+    "downcast": "😢😔🥺",
+    "surprise": "😮😲"
+  },
+  "keywords": [
+    { "emotion": "happy", "words": ["thanks", "great", "love", "고마워", "좋아"] },
+    { "emotion": "excited", "words": ["awesome", "let's go", "대박", "고고"] }
+  ],
+  "labels": {},
+  "default_intensity": 0.85
+}

@@ -1,0 +1,34 @@
+{
+  "id": "my-preset",
+  "name": "My Avatar",
+  "name_en": "My Avatar",
+  "version": "1.0.0",
+  "author": "your-name",
+  "sfw": true,
+  "private": false,
+  "engine": ">=0.1.0",
+  "description": "One-line description shown in the preset picker / on the store page.",
+
+  "avatar": {
+    "//": "Self-contained: put your segments + manifest + source under avatar/. Paths are URLs the player loads (served from the preset dir).",
+    "source": "avatar/source.png",
+    "manifest": "avatar/manifest.json",
+    "segments_base": "avatar/segments"
+  },
+
+  "font": {
+    "//": "Bundle ONLY fonts whose license permits redistribution + commercial use (e.g. SIL OFL / Google Fonts). Put the file under fonts/.",
+    "family": "YourFont",
+    "url": "fonts/YourFont.woff2"
+  },
+
+  "theme": {
+    "//": "Either a built-in theme id (graphite/crimson/ember/gold/teal/rose/azure/paper/rose_l/sky_l/sand_l) OR an inline theme object.",
+    "id": "graphite"
+  },
+
+  "voice": { "engine": "qwen3-tts", "speaker": "Sohee", "language": "Korean", "sample_rate": 24000 },
+
+  "role": "role.md",
+  "emotion_map": "emotion_map.json"
+}

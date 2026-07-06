@@ -1,0 +1,15 @@
+# Private presets are not published to the open-source engine repo.
+# The engine ships with _template/ only; personal avatars (mina-default) and any
+# paid packs stay local / sold separately.
+mina-default/
+*/avatar/segments/
+*/avatar/source.*
+*.woff2
+*.woff
+*.ttf
+*.otf
+# keep the template + docs tracked (active.txt is install-local → not tracked;
+# the loader defaults to _template when it's absent)
+!_template/
+!README.md
+!.gitignore

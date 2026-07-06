@@ -1,0 +1,10 @@
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+*.mp4 binary
+*.wasm binary
+*.onnx binary
+*.woff2 binary
+*.png binary

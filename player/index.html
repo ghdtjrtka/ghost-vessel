@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아바타 비서</title>
+<style>
+  :root{ --bg:#0b0b0f; --panel:#14141c; --panel2:#181822; --line:#26262f; --txt:#ececf2; --dim:#8f8fa6; --accent:#64748b; --ok:#34d399; --warn:#fbbf24; --u:#64748b; --field:#0e0e15; --hover:#20202b; }
+  body{ transition:background .25s, color .25s; }
+  *{ box-sizing:border-box; } html,body{ height:100%; }
+  body{ margin:0; font-family:system-ui,'Segoe UI',sans-serif; background:var(--bg); color:var(--txt); display:flex; gap:16px; padding:16px; height:100vh; overflow:hidden; }
+
+  /* ── 영상 창 ── */
+  .call{ flex:0 0 auto; width:var(--callw,420px); height:100%; border-radius:20px; overflow:hidden; background:#000; position:relative; border:1px solid var(--line); box-shadow:0 14px 44px rgba(0,0,0,.5); min-width:200px; }
+  .divider{ flex:0 0 8px; align-self:stretch; cursor:col-resize; border-radius:8px; }
+  .divider:hover,.divider.drag{ background:#2b2b39; }
+  .hd .mode{ cursor:pointer; font-size:14px; opacity:.85; margin-left:6px; }
+  /* 분리 모드: 영상창이 떠서 이동/리사이즈/스냅 */
+  body.sep{ position:relative; }
+  body.sep .divider{ display:none; }
+  body.sep .call{ position:fixed; z-index:60; top:24px; right:24px; left:auto; width:300px; height:auto; aspect-ratio:9/16; resize:both; overflow:hidden; box-shadow:0 24px 70px #000d; transition:top .12s,left .12s,right .12s; }
+  body.sep .call .hd{ cursor:move; }
+  .call .hd{ position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center; gap:8px; padding:12px 14px; background:linear-gradient(#000b,#0000); font-size:13px; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .hd .nm{ font-weight:600; } .hd .st{ margin-left:auto; font-size:11px; color:var(--dim); }
+  .call video,.call img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .call .lyr{ position:absolute; inset:0; transition:opacity .26s ease; will-change:opacity; }
+  /* 줌 상한(capped-cover): 초세로 창에서 cover-crop이 얼굴만 꽉 채우는 것 방지.
+     JS(applyZoomCap)가 영상 폭을 창폭×CAP까지만 허용 — 세로 여백은 방 톤 그라데이션. */
+  .call{ background:linear-gradient(180deg,#3a2140 0%,#241430 55%,#170d20 100%); }
+  .badge{ position:absolute; top:46px; right:12px; z-index:3; background:#000c; border:1px solid var(--line); border-radius:9px; padding:5px 9px; font-size:11px; color:var(--dim); display:none; }
+  .badge b{ color:var(--txt); }
+  .cap{ position:absolute; left:0; right:0; bottom:0; z-index:3; padding:22px 16px 16px; background:linear-gradient(#0000,#000d); font-size:15px; line-height:1.45; min-height:20px; }
+  .confirm{ position:absolute; inset:0; z-index:4; display:none; flex-direction:column; justify-content:flex-end; gap:8px; padding:18px; background:#0008; }
+  .confirm button{ all:unset; text-align:center; background:var(--accent); color:#fff; border-radius:11px; padding:11px; cursor:pointer; font-size:14px; } .confirm button.no{ background:#2a2a38; }
+
+  /* ── 대화 창 (텔레그램 스타일) ── */
+  .chat{ flex:1; min-width:0; height:100%; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+  .chat .hd{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .chat .hd .av{ width:34px; height:34px; border-radius:50%; object-fit:cover; }
+  .chat .hd .ti{ font-weight:600; font-size:14px; } .chat .hd .su{ font-size:11px; color:var(--dim); }
+  .chat .hd .vt{ margin-left:auto; cursor:pointer; font-size:16px; opacity:.85; user-select:none; }
+  .log{ flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:10px; scroll-behavior:smooth; }
+  .log::-webkit-scrollbar{ width:9px; } .log::-webkit-scrollbar-thumb{ background:#33333f; border-radius:9px; }
+  .row{ display:flex; } .row.u{ justify-content:flex-end; }
+  .bub{ max-width:74%; padding:9px 13px; border-radius:16px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .row.a .bub{ background:var(--panel2); border:1px solid var(--line); border-bottom-left-radius:5px; }
+  .row.u .bub{ background:var(--u); color:#fff; border-bottom-right-radius:5px; }
+  .row.cmd .bub{ background:#0d0d14; border:1px solid var(--accent); color:var(--accent); font-family:ui-monospace,Consolas,monospace; }
+  .code{ max-width:88%; background:var(--field); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .code .bar{ display:flex; align-items:center; gap:8px; padding:6px 11px; font-size:11px; color:var(--dim); border-bottom:1px solid var(--line); }
+  .code .bar button{ all:unset; margin-left:auto; cursor:pointer; color:var(--accent); font-size:11px; }
+  .code pre{ margin:0; padding:11px; overflow-x:auto; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; }
+  .file{ display:flex; align-items:center; gap:11px; max-width:74%; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:11px 13px; }
+  .file .ic{ font-size:22px; } .file .fn{ font-size:13px; } .file a{ margin-left:auto; color:var(--accent); font-size:12px; text-decoration:none; border:1px solid var(--line); border-radius:9px; padding:5px 11px; }
+  .empty{ margin:auto; color:var(--dim); font-size:13px; text-align:center; }
+  .typing{ align-self:flex-start; color:var(--dim); font-size:12px; padding:2px 6px; }
+
+  /* 입력바 */
+  .inbar{ display:flex; align-items:center; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
+  .iconbtn{ all:unset; cursor:pointer; width:38px; height:38px; border-radius:50%; display:grid; place-items:center; font-size:17px; color:var(--dim); }
+  .iconbtn:hover{ background:var(--hover); color:var(--txt); }
+  .inbar input.msg{ flex:1; background:var(--field); color:var(--txt); border:1px solid var(--line); border-radius:22px; padding:11px 16px; font-size:14px; outline:none; }
+  .inbar input.msg:focus{ border-color:var(--accent); }
+  .send{ all:unset; cursor:pointer; width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:16px; }
+  .skillmenu{ position:absolute; bottom:64px; left:14px; z-index:6; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:6px; display:none; min-width:200px; box-shadow:0 10px 30px #000a; }
+  .skillmenu div{ padding:8px 12px; border-radius:8px; font-size:13px; cursor:pointer; font-family:ui-monospace,Consolas,monospace; }
+  .skillmenu div:hover{ background:var(--hover); }
+  .chatwrap{ position:relative; flex:1; display:flex; flex-direction:column; min-height:0; }
+
+  /* ── 이스터에그: 퍼포먼스 플레이어 (/sam) ── */
+  .perf{ position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; background:#000a; backdrop-filter:blur(4px); }
+  .perf.show{ display:flex; animation:pfade .18s ease; }
+  @keyframes pfade{ from{ opacity:0; transform:scale(.98); } to{ opacity:1; transform:none; } }
+  .perf .box{ width:min(760px,92vw); max-height:88vh; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--accent); border-radius:18px; overflow:hidden; box-shadow:0 30px 90px #000e, 0 0 0 1px #8b5cf633; }
+  .perf .top{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); background:linear-gradient(90deg,#8b5cf622,#0000); }
+  .perf .top .t{ font-weight:700; font-size:15px; letter-spacing:.3px; } .perf .top .sub{ font-size:11px; color:var(--dim); }
+  .perf .top .x{ margin-left:auto; cursor:pointer; font-size:18px; color:var(--dim); } .perf .top .x:hover{ color:var(--txt); }
+  .perf .body{ overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
+  .perf .sec{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+  .grid{ display:flex; flex-wrap:wrap; gap:7px; }
+  .chip{ cursor:pointer; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:12px; display:flex; flex-direction:column; gap:1px; min-width:78px; }
+  .chip:hover{ border-color:var(--accent); background:var(--hover); } .chip.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .chip .n{ font-weight:600; } .chip .m{ font-size:10px; color:var(--dim); }
+  .chip.loop .n{ color:var(--ok); } .chip.alive .n{ color:var(--warn); }
+  .perf textarea{ width:100%; background:var(--field); color:var(--txt); border:1px solid var(--line); border-radius:11px; padding:10px 12px; font-size:13px; font-family:ui-monospace,Consolas,monospace; outline:none; resize:vertical; min-height:60px; }
+  .perf textarea:focus{ border-color:var(--accent); }
+  .perf .run{ all:unset; cursor:pointer; margin-top:8px; background:var(--accent); color:#fff; border-radius:10px; padding:9px 16px; font-size:13px; text-align:center; }
+  .perf .hintrow{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .perf .hintrow span{ cursor:pointer; font-size:11px; color:var(--accent); border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-family:ui-monospace,monospace; }
+
+  /* ── 테마 선택기 ── */
+  .thememenu{ position:fixed; z-index:130; display:none; width:280px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 20px 60px #0009; }
+  .thememenu.show{ display:block; }
+  .thememenu .lbl{ font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); margin:8px 2px 6px; }
+  .thememenu .lbl:first-child{ margin-top:0; }
+  .swgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .sw{ cursor:pointer; border-radius:10px; padding:7px 4px 6px; border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .sw:hover{ border-color:var(--accent); }
+  .sw.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .sw .disc{ width:26px; height:26px; border-radius:50%; position:relative; border:1px solid #0003; }
+  .sw .disc i{ position:absolute; right:2px; bottom:2px; width:11px; height:11px; border-radius:50%; border:1.5px solid; }
+  .sw .nm{ font-size:10px; color:var(--dim); white-space:nowrap; }
+  .thememenu .langrow{ display:flex; gap:6px; }
+  .thememenu .langbtn{ flex:1; text-align:center; cursor:pointer; font-size:12px; padding:7px; border:1px solid var(--line); border-radius:9px; color:var(--dim); }
+  .thememenu .langbtn.on{ border-color:var(--accent); color:var(--txt); background:var(--hover); }
+  .sysrow{ font-size:12px; padding:3px 2px; color:var(--txt); }
+  .micsel{ width:100%; background:var(--field); color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:6px; font-size:12px; outline:none; }
+</style>
+</head>
+<body>
+  <!-- 영상 창 -->
+  <div class="call">
+    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
+    <video id="vid" class="lyr" muted playsinline></video>
+    <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
+    <div class="badge" id="badge"></div>
+    <div class="cap" id="cap"></div>
+    <div class="confirm" id="confirm"><div id="confirmText" style="margin-bottom:6px"></div>
+      <button onclick="resolveConfirm(true)" data-i18n="confirm_yes">응, 진행해</button><button class="no" onclick="resolveConfirm(false)" data-i18n="confirm_no">아니, 취소</button></div>
+  </div>
+
+  <div class="divider" id="divider" data-i18n-title="resize" title="드래그해서 크기조절"></div>
+
+  <!-- 대화 창 -->
+  <div class="chat">
+    <div class="hd"><img class="av" id="hdav" src="../ref/source_final.png"><div><div class="ti" id="nameC">…</div><div class="su" id="liveLabel">연결 중…</div></div><span class="vt" id="themeBtn" data-i18n-title="theme" title="테마" onclick="toggleTheme(event)" style="margin-left:auto">🎨</span><span class="vt" id="vt" data-i18n-title="voice" title="음성 켜기/끄기" onclick="toggleVoice()" style="margin-left:0">🔊</span></div>
+    <div class="chatwrap">
+      <div class="log" id="log"><div class="empty" data-i18n-html="empty">대화를 시작하세요.<br>파일 첨부 📎 · 스킬 <b>/</b> · Enter 전송</div></div>
+      <div class="skillmenu" id="skillmenu"></div>
+    </div>
+    <div class="inbar">
+      <input type="file" id="fileInput" hidden multiple>
+      <button class="iconbtn" data-i18n-title="attach" title="파일 첨부" onclick="document.getElementById('fileInput').click()">📎</button>
+      <button class="iconbtn" data-i18n-title="skills" title="스킬 (/)" onclick="toggleSkills()">⚡</button>
+      <input class="msg" id="chatInput" data-i18n-ph="input_ph" placeholder="메시지 입력…  ( / 스킬 )" autocomplete="off">
+      <button class="iconbtn" id="micBtn" data-i18n-title="mic" title="음성 입력" onclick="toggleMic()">🎙</button>
+      <button class="send" data-i18n-title="send" title="전송" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+
+  <!-- 테마 선택기 -->
+  <div class="thememenu" id="thememenu"></div>
+
+  <!-- 이스터에그: 퍼포먼스 플레이어 (/sam) -->
+  <div class="perf" id="perf">
+    <div class="box">
+      <div class="top"><span class="t" data-i18n="perf_title">🎬 퍼포먼스 플레이어</span><span class="sub" data-i18n="perf_sub">개발자 모드 · /sam</span><span class="x" onclick="closePerf()">✕</span></div>
+      <div class="body">
+        <div>
+          <div class="sec"><span data-i18n="sec_seg">표정 · 모션 세그먼트</span> <span id="segCount" style="color:var(--dim)"></span></div>
+          <div class="grid" id="segGrid"></div>
+        </div>
+        <div>
+          <div class="sec" data-i18n="sec_parse">감정비트 파서 테스트 (실제 파이프라인)</div>
+          <textarea id="perfIn" data-i18n-ph="perf_ph" placeholder="[happy] 안녕! [pout] 흥, 삐졌어 [excited] 근데 이거 봐봐"></textarea>
+          <div class="hintrow" id="perfHints"></div>
+          <button class="run" onclick="runPerf()" data-i18n="run">▶ 재생 (파서 → 퍼포먼스)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="vad/ort.js"></script>
+<script src="vad/bundle.min.js"></script>
+<script>
+const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://127.0.0.1:8898';
+const SKILLS=['/help','/skills','/memory','/schedule','/web','/skill new'];
+
+// ── 다국어 (한/영) ──
+const I18N={
+  ko:{ state_online:'온라인', state_speaking:'말하는 중',
+    live_connecting:'연결 중…', live_on:'● 온라인 (에이전트 연결됨)', live_off:'○ 브리지 미연결',
+    live_demo:'● 온라인 · 데모 모드 (에이전트 미연결)',
+    system:'시스템', sys_bridge:'브리지', sys_loading:'(로딩 중…)', sys_down:'(꺼짐)',
+    sys_linked:'연결됨', sys_demo:'미연결(데모)', gw_start:'게이트웨이 시작', gw_stop:'종료',
+    mic_device:'마이크 장치', mic_default:'시스템 기본값', mic_grant:'장치 이름 표시 (권한 허용)',
+    sep:'분리 / 합치기', resize:'드래그해서 크기조절', theme:'테마 · 언어', voice:'음성 켜기/끄기',
+    attach:'파일 첨부', skills:'스킬 (/)', send:'전송', mic:'음성 입력 (VAD)', input_ph:'메시지 입력…  ( / 스킬 )',
+    empty:'대화를 시작하세요.<br>파일 첨부 📎 · 스킬 <b>/</b> · Enter 전송',
+    confirm_yes:'응, 진행해', confirm_no:'아니, 취소', confirm_q:'진행할까요?',
+    approved:'— (승인됨)', canceled:'— (취소됨)',
+    perf_title:'🎬 퍼포먼스 플레이어', perf_sub:'개발자 모드 · /sam',
+    sec_seg:'표정 · 모션 세그먼트', sec_parse:'감정비트 파서 테스트 (실제 파이프라인)',
+    perf_ph:'[happy] 안녕! [pout] 흥, 삐졌어 [excited] 근데 이거 봐봐', run:'▶ 재생 (파서 → 퍼포먼스)',
+    language:'언어 / Language', dark:'다크', light:'라이트',
+    bridge_off:'⚠ 브리지 미연결', bridge_off_parse:'⚠ 브리지 미연결 — 파서 재생 불가', title_suffix:' 비서' },
+  en:{ state_online:'Online', state_speaking:'Speaking',
+    live_connecting:'Connecting…', live_on:'● Online (agent connected)', live_off:'○ Bridge offline',
+    live_demo:'● Online · demo mode (agent not connected)',
+    system:'System', sys_bridge:'Bridge', sys_loading:'(loading…)', sys_down:'(down)',
+    sys_linked:'linked', sys_demo:'demo', gw_start:'Start gateway', gw_stop:'Stop',
+    mic_device:'Microphone', mic_default:'System default', mic_grant:'Show device names (grant permission)',
+    sep:'Detach / Combine', resize:'Drag to resize', theme:'Theme · Language', voice:'Toggle voice',
+    attach:'Attach file', skills:'Skills (/)', send:'Send', mic:'Voice input (VAD)', input_ph:'Type a message…  ( / skills )',
+    empty:'Start a conversation.<br>Attach 📎 · Skills <b>/</b> · Enter to send',
+    confirm_yes:'Yes, go ahead', confirm_no:'No, cancel', confirm_q:'Proceed?',
+    approved:'— (approved)', canceled:'— (canceled)',
+    perf_title:'🎬 Performance Player', perf_sub:'Dev mode · /sam',
+    sec_seg:'Expression · Motion segments', sec_parse:'Emotion-beat parser test (live pipeline)',
+    perf_ph:'[happy] Hi there! [pout] Hmph, I\'m sulking [excited] but check this out', run:'▶ Play (parse → perform)',
+    language:'언어 / Language', dark:'Dark', light:'Light',
+    bridge_off:'⚠ Bridge offline', bridge_off_parse:'⚠ Bridge offline — cannot run parser', title_suffix:' · Assistant' },
+};
+let curLang='ko', curName='';
+function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.ko[k] ?? k; }
+function updateTitle(){ document.title=(curName||'미나미')+t('title_suffix'); }
+function applyLang(){ document.documentElement.lang=curLang;
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=t(el.dataset.i18nPh));
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>el.title=t(el.dataset.i18nTitle));
+  setState(stateKey); setLive(liveKey); updateTitle();
+  const m=$('thememenu'); const shown=m.classList.contains('show'); m.innerHTML=''; buildThemeMenu(); if(shown)m.classList.add('show'); }
+function setLang(code){ curLang=code; try{ localStorage.setItem('avatarLang',code); }catch(e){} applyLang(); }
+let SEGS=[], byName={}, byEmotion={}, byEmoMood={}, voiceOn=true;
+// 3축: 현재 무드 베이스에 맞는 표정 변주가 있으면 우선 (없으면 뉴트럴판 폴백)
+function segFor(emo){ const mv=byEmoMood[emo]; const base=(MOOD&&MOOD.base)||'neutral';
+  return (mv&&mv[base]) || byEmotion[emo]; }
+const $=id=>document.getElementById(id);
+let SEG_BASE='../segments/web', MANIFEST_URL='../segments/manifest.json', PRESET=null;
+let SEG_VER='';                                  // manifest.version → 세그먼트 캐시버스팅
+const segUrl=n=>SEG_BASE+'/'+n+'.mp4'+(SEG_VER?('?v='+SEG_VER):'');
+const has=n=>!!byName[n];
+
+// ── 이중버퍼 크로스페이드: src 교체 시 검은 프레임 깜빡임 제거 ──
+let front=$('vid'), back=$('vid2'), settleT={}; const FADE=260;
+function swapLayers(){ const t=front; front=back; back=t; }
+function crossTo(n, loop, fade){ return new Promise(res=>{
+  const fd=(fade==null?FADE:fade); let done=false;
+  const go=()=>{ if(done)return; done=true; back.removeEventListener('playing',go);
+    back.style.transitionDuration=(fd/1000)+'s'; front.style.transitionDuration=(fd/1000)+'s';
+    back.style.opacity=1; front.style.opacity=0; const prev=front; swapLayers();
+    setTimeout(()=>{ try{ prev.pause(); }catch(e){} }, fd+80); res(); };
+  back.loop=!!loop; back.onended=null; back.dataset.cur=n;
+  back.addEventListener('playing',go);
+  try{ back.src=segUrl(n); const p=back.play(); if(p&&p.catch)p.catch(()=>setTimeout(go,50)); }catch(e){ setTimeout(go,50); }
+  setTimeout(go, 1100); // 안전장치: 'playing' 미발생 시(캐시 등) 강제 전환
+}); }
+function loopSeg(n){ if(!has(n))return; if(front.dataset.cur===n&&front.loop&&!front.paused)return;
+  crossTo(n,true).then(()=>{ front.playbackRate=(MOOD&&MOOD.rate)||1; }); }
+function playOnceAsync(n, fade, capMs){ return new Promise(res=>{ if(!has(n)){res();return;}
+  crossTo(n,false,fade).then(()=>{ const v=front; v.playbackRate=1; let d=0;
+    const fin=()=>{ if(d)return; d=1; v.onended=null; res(); }; v.onended=fin; setTimeout(fin,capMs||4000); }); }); }
+
+// ── settle 게이트: idle에서 고개가 감정소스 베이스(f111 정면) 포즈에 도달하는 순간까지 대기 ──
+// 그 시점에 표정을 드러내면 포즈가 일치해 스냅 없이 "정위치에서 감정이 드러나는" 연출이 됨.
+function waitForSettle(tok){ return new Promise(res=>{
+  const v=front, st=settleT[v.dataset.cur], d=v.duration||0;
+  if(!st||!st.length||!d){ res(false); return; }
+  const ct=v.currentTime; let wait=1e9; for(const s of st){ let dt=s-ct; if(dt<0)dt+=d; if(dt<wait)wait=dt; }
+  const CAP=2.0, matched=wait<=CAP, ms=(matched?wait:CAP)*1000;
+  let done=false; const fin=(m)=>{ if(done)return; done=true; clearInterval(chk); res(m); };
+  const timer=setTimeout(()=>fin(matched), ms+20);
+  const chk=setInterval(()=>{ if(tok!==playToken){ clearTimeout(timer); fin(false); } }, 50);
+  setTimeout(()=>clearInterval(chk), ms+80);
+}); }
+// ── 표시 줌 상한: 창이 아무리 세로여도 얼굴-온리 크롭이 되지 않게 ──
+// cover 줌 Z = 영상AR/창AR. Z가 CAP 초과면 영상 폭을 창폭×CAP으로 고정(수평 크롭 상한),
+// 세로는 전체 프레임 노출(상반신 유지). 여백은 .call 그라데이션이 받친다.
+const ZOOM_CAP=2.4, VID_AR=16/9;   // 2.4 = 얼굴+가슴 통화구도 유지 (얼굴-온리 방지)
+function applyZoomCap(){
+  const call=document.querySelector('.call'); if(!call) return;
+  const W=call.clientWidth, H=call.clientHeight; if(!W||!H) return;
+  const winAR=W/H, Z=VID_AR/winAR;
+  for(const v of [document.getElementById('vid'),document.getElementById('vid2')]){
+    if(!v) continue;
+    if(Z>ZOOM_CAP){
+      const w=W*ZOOM_CAP, h=w/VID_AR;
+      v.style.width=w+'px'; v.style.height=h+'px';
+      v.style.left=((W-w)/2)+'px'; v.style.top=Math.max(0,(H-h)*0.22)+'px';   // 얼굴이 위쪽이라 22% 지점
+      v.style.right='auto'; v.style.bottom='auto';
+    }else{
+      v.style.width=''; v.style.height=''; v.style.left=''; v.style.top=''; v.style.right=''; v.style.bottom='';
+    }
+  }
+}
+window.addEventListener('resize',applyZoomCap);
+(function(){ const c=document.querySelector('.call'); if(c) new ResizeObserver(applyZoomCap).observe(c); })();
+
+// ── 무드 상태 (브리지 mood 트래커가 SSE로 push) ──
+let MOOD={base:'neutral',mood:0,affinity:0,rate:1.0};
+function idleBase(){
+  const bs=(PRESET&&PRESET.emotion&&PRESET.emotion.bases)||{};
+  const cand=bs[MOOD.base];
+  if(cand&&has(cand)) return cand;                       // 무드 base idle
+  return has('alive_idle')?'alive_idle':(has('idle_loop')?'idle_loop':'talking_clear_loop');
+}
+function setMood(m){ if(!m)return; const prev=MOOD.base; MOOD=m;
+  if(front&&front.loop) front.playbackRate=MOOD.rate||1;   // 처지면 느리게, 밝으면 생기
+  if(m.base!==prev && stateKey==='online') idle();          // 대기 중이면 base 크로스페이드
+}
+function talkBase(){ return has('talking_calm_loop')?'talking_calm_loop':(has('talking_clear_loop')?'talking_clear_loop':idleBase()); }
+function idle(){ loopSeg(idleBase()); setState('online'); $('badge').style.display='none'; }
+let stateKey='online', liveKey='live_connecting';
+function setState(k){ stateKey=k; $('stateLabel').textContent=t('state_'+k);
+  if(k==='speaking'){ $('dot').style.background='var(--accent)'; } else { _dotByAgent(); } }
+function setLive(k,raw){ liveKey=k; $('liveLabel').textContent=raw||t(k); }
+// 초록불 = 에이전트 실연결일 때만. 데모 모드는 노란불, 브리지 끊김은 회색.
+function _dotByAgent(){ const d=$('dot');
+  if(!esConnected){ d.style.background='#777'; d.style.boxShadow='none'; return; }
+  const on=SYS&&SYS.agent_connected;
+  d.style.background=on?'var(--ok)':'var(--warn)';
+  d.style.boxShadow='0 0 8px '+(on?'var(--ok)':'var(--warn)'); }
+
+// ── 시스템 상태 폴링 (/status_all): 데모/에이전트 구분 + 서비스 레디 ──
+let SYS=null, esConnected=false;
+async function pollStatus(){
+  try{ SYS=await (await fetch(BRIDGE+'/status_all')).json(); }catch(e){ SYS=null; }
+  if(!esConnected){ setLive('live_off'); }
+  else if(SYS&&SYS.agent_connected){
+    setLive('live_on','● 온라인 · '+(SYS.agent_type==='openclaw'?'OpenClaw':'Hermes')+' 연결됨'); }
+  else setLive('live_demo');
+  if(stateKey==='online') _dotByAgent();
+  renderSys();
+}
+setInterval(pollStatus,10000);
+function renderSys(){ const m=$('thememenu'); if(!m||!m.childElementCount) return;
+  let d=document.getElementById('sysmenu');
+  if(!d){ const l=document.createElement('div'); l.className='lbl'; l.textContent=t('system');
+    m.appendChild(l); d=document.createElement('div'); d.id='sysmenu'; m.appendChild(d); }
+  const s=SYS||{}; const dot=b=>b?'🟢':'⚪';
+  d.innerHTML=
+    `<div class="sysrow">${dot(esConnected)} ${t('sys_bridge')}</div>`+
+    `<div class="sysrow">${dot(s.tts_ready)} TTS ${s.tts&&!s.tts_ready?t('sys_loading'):(s.tts?'':t('sys_down'))}</div>`+
+    `<div class="sysrow">${dot(s.stt_ready)} STT ${s.stt&&!s.stt_ready?t('sys_loading'):(s.stt?'':t('sys_down'))}</div>`+
+    `<div class="sysrow">${dot(s.agent_connected)} ${(s.agent_type==='openclaw'?'OpenClaw':'Hermes')} ${s.agent_connected?t('sys_linked'):t('sys_demo')}</div>`+
+    `<div class="langrow" style="margin-top:6px">`+
+    `<div class="langbtn" onclick="agentCtl('start')">${t('gw_start')}</div>`+
+    `<div class="langbtn" onclick="agentCtl('stop')">${t('gw_stop')}</div></div>`;
+}
+async function agentCtl(op){
+  try{ const r=await (await fetch(BRIDGE+'/agent/'+op,{method:'POST'})).json();
+    appendCmd('⚙ '+(r.msg||op)); }catch(e){ appendAgent('⚠ 게이트웨이 제어 실패 (브리지 미연결?)'); }
+  setTimeout(pollStatus,2000); setTimeout(pollStatus,15000);   // 부팅 완료 재확인
+}
+function setBadge(emo,inten){ if(!emo||emo==='neutral'){ $('badge').style.display='none'; return;}
+  const lbl=(PRESET&&PRESET.emotion&&PRESET.emotion.labels&&PRESET.emotion.labels[emo])||emo;   // 프리셋 라벨(한글)
+  $('badge').style.display='block'; $('badge').innerHTML=`<b>${lbl}</b> · ${inten??''}`; }
+
+// ── 대화 로그 (스크롤) ──
+function atBottom(){ const l=$('log'); return l.scrollHeight-l.scrollTop-l.clientHeight<80; }
+function scroll(){ const l=$('log'); l.scrollTop=l.scrollHeight; }
+function clearEmpty(){ const e=$('log').querySelector('.empty'); if(e)e.remove(); }
+function addRow(cls, node){ clearEmpty(); const stick=atBottom(); const r=document.createElement('div'); r.className='row '+cls; r.appendChild(node); $('log').appendChild(r); if(stick)scroll(); return r; }
+function bubble(text){ const b=document.createElement('div'); b.className='bub'; b.textContent=text; return b; }
+function appendUser(text){ addRow('u', bubble(text)); }
+function appendCmd(text){ addRow('cmd', bubble(text)); }
+function appendAgent(text){ if(!text)return; addRow('a', bubble(text)); }
+function renderData(items){ if(!items||!items.length)return; clearEmpty(); const stick=atBottom();
+  for(const it of items){
+    if(it.type==='code'){ const d=document.createElement('div'); d.className='code'; d.innerHTML=`<div class="bar">${it.lang}<button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.closest('.code').querySelector('pre').textContent)">복사</button></div><pre></pre>`; d.querySelector('pre').textContent=it.content; $('log').appendChild(d); }
+    else if(it.type==='file'){ const href=BRIDGE+'/file?path='+encodeURIComponent(it.path); const d=document.createElement('div'); d.className='file'; d.innerHTML=`<span class="ic">📄</span><span class="fn">${it.name}</span><a href="${href}" download>받기</a>`; $('log').appendChild(d); }
+    else { const d=document.createElement('div'); d.className='code'; d.innerHTML='<pre></pre>'; d.querySelector('pre').textContent=JSON.stringify(it,null,2); $('log').appendChild(d); }
+  }
+  if(stick)scroll();
+}
+
+// ── TTS ──
+let ttsPlaying=false;   // 하프듀플렉스: 재생 중엔 마이크 청취 정지 (에코 루프 방지)
+// 프리페치: 감정 세그먼트가 재생되는 동안 합성을 미리 시작 → 체감 지연 절감
+function ttsFetch(text){ if(!voiceOn||!text) return null;
+  const v=(PRESET&&PRESET.voice)||{};
+  return fetch(TTS+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text,speaker:v.speaker,language:v.language})})
+    .then(r=>{ if(!r.ok) throw 0; return r.blob(); }).then(b=>URL.createObjectURL(b))
+    .catch(()=>null); }
+// A안: 문장 단위 청킹. RTF~2.8x가 하드 플로어라 '문장 내' 쪼개기는 오히려 갭을 만든다
+// (짧은 오프너 뒤 19s 침묵 실측). 문장 단위면 각 문장은 매끈하게 재생되고, 여러 문장
+// 답변은 1번 문장이 재생되는 동안 2번이 뒤에서 합성돼 전체 대기가 줄어든다.
+// 3-플레인 분리로 대사 자체가 짧아(코드·로그는 데이터 평면행) 대부분 1~2문장이다.
+function _chunkText(text){
+  let sents=text.split(/(?<=[.!?…~])\s+/).map(s=>s.trim()).filter(Boolean);
+  if(sents.length<=1) return [text];
+  const out=[];                                    // 아주 짧은 문장(<6자)은 이웃과 합쳐 프로소디 보호
+  for(const s of sents){ if(out.length&&(s.length<6||out[out.length-1].length<6)) out[out.length-1]+=' '+s; else out.push(s); }
+  return out.slice(0,10);
+}
+function ttsFetchSeq(text){ if(!voiceOn||!text) return null;
+  const parts=_chunkText(text);
+  if(parts.length<=1) return [{text,urlP:ttsFetch(text)}];
+  return parts.map(t=>({text:t,urlP:ttsFetch(t)}));   // 전부 즉시 발사 → 서버 FIFO가 순서대로 합성
+}
+async function playTTSSeq(parts,fullText){
+  if(!parts){ await playTTS(null,fullText); return; }
+  for(const p of parts){ await playTTS(p.urlP,p.text); }
+}
+function playTTS(urlP,text){ return new Promise(async res=>{
+  const fallback=()=>setTimeout(res, Math.min(3200,600+(text||'').length*55));
+  // 숨은 탭은 발화 금지 (여러 탭이 같은 SSE를 받아 각자 재생 → 중복 발화 방지)
+  if(!voiceOn||!text||document.hidden){ document.hidden?setTimeout(res,150):fallback(); return; }
+  let url=null; try{ url=await urlP; }catch(e){}
+  if(!url){ fallback(); return; }
+  const a=new Audio(url); ttsPlaying=true; let d=0;
+  const done=()=>{ if(d)return; d=1; ttsPlaying=false; clearTimeout(wd); URL.revokeObjectURL(url); res(); };
+  const wd=setTimeout(done, 9000+text.length*150);   // watchdog: onended 미발화/차단 시 고착 방지
+  a.onended=done; a.onerror=done;
+  a.play().catch(done);                              // autoplay 차단이어도 플래그 안 고착
+}); }
+function toggleVoice(){ voiceOn=!voiceOn; $('vt').textContent=voiceOn?'🔊':'🔇'; }
+
+// ── 퍼포먼스 재생: 행동/대화/데이터 3-플레인, 감정 비트 순차 ──
+let confirmCb=null, playToken=0;
+async function play(p){
+  const tok=++playToken;
+  if(p.mood) setMood(p.mood);
+  // 사용자 말에 대한 즉시 반응(칭찬/질책): settle 대기 없이 바로 움찔/반색 → idle 복귀
+  if(p.context&&p.context.trigger_type==='user_reaction'){
+    const b=(p.dialogue&&p.dialogue.beats&&p.dialogue.beats[0])||{emotion:'neutral'};
+    const seg=segFor(b.emotion);
+    setBadge(b.emotion,b.intensity);
+    if(seg){ await playOnceAsync(seg.name,120); }
+    if(tok===playToken) idle();
+    return;
+  }
+  renderData(p.data);
+  if(p.context?.requires_confirmation){ const text=p.dialogue?.text||''; $('cap').textContent=text; appendAgent(text);
+    $('confirmText').textContent=text||t('confirm_q'); $('confirm').style.display='flex'; setState('speaking');
+    loopSeg(has('concerned')?'concerned':idleBase());
+    confirmCb=(y)=>{ $('confirm').style.display='none'; appendAgent(y?t('approved'):t('canceled')); idle(); }; return; }
+  const beats=(p.dialogue?.beats&&p.dialogue.beats.length)?p.dialogue.beats
+    :[{emotion:p.performance?.emotion||'neutral', text:p.dialogue?.text||'', intensity:p.performance?.intensity||0.85}];
+  for(const b of beats){
+    if(tok!==playToken)return;
+    if(b.text)appendAgent(b.text);                        // 채팅 로그는 즉시
+    const pre=ttsFetchSeq(b.text);                        // 문장별 합성을 세그먼트 재생과 병렬로
+    const seg=segFor(b.emotion);
+    let matched=false;
+    // idle에서 반응 시작할 때만 정위치 대기 (talk 루프는 이미 정면이라 대기 불필요)
+    if(seg && settleT[front.dataset.cur]){ matched=await waitForSettle(tok); if(tok!==playToken)return; }
+    $('cap').textContent=b.text; setBadge(b.emotion,b.intensity); setState('speaking');
+    if(seg) await playOnceAsync(seg.name, matched?120:FADE); // 정위치 일치 시 짧은 페이드로 즉시 드러냄
+    if(tok!==playToken)return;
+    loopSeg(talkBase()); await playTTSSeq(pre,b.text);
+  }
+  if(tok===playToken) idle();
+}
+function resolveConfirm(y){ if(confirmCb)confirmCb(y); }
+
+// ── idle rest 스케줄러: 대기 중 가끔 눈 감고 쉼 (빤히 응시 방지) ──
+let _idleSince=Date.now(), _nextRest=18000+Math.random()*14000, _resting=false;
+function _restSeg(){
+  // 무드 일치 rest 우선; 뉴트럴은 차분한 positive rest 차용 가능(네거티브는 무드 불일치 표정 금지)
+  const rests=SEGS.filter(s=>s.kind==='mood_idle'&&s.style==='rest_eyes_closed');
+  return rests.find(s=>s.mood===MOOD.base)
+      || (MOOD.base==='neutral' ? rests.find(s=>s.mood==='positive') : null)
+      || null;
+}
+setInterval(async ()=>{
+  if(stateKey!=='online'||_resting){ if(_resting)_idleSince=Date.now(); return; }
+  // 자가치유: idle이어야 하는데 비루프 영상이 끝나 얼어있으면 base idle로 복귀
+  if(front && !front.loop && front.paused){ idle(); _idleSince=Date.now(); return; }
+  if(Date.now()-_idleSince<_nextRest) return;
+  const r=_restSeg(); if(!r){ _idleSince=Date.now(); return; }
+  _resting=true;
+  const tok=++playToken;
+  const dur=Math.min(9000,(r.frames/(r.fps||24))*1000+400);
+  await playOnceAsync(r.name, 400, dur);                 // 천천히 감았다가
+  if(tok===playToken) idle();                            // 다시 base로
+  _resting=false; _idleSince=Date.now(); _nextRest=18000+Math.random()*14000;
+},2500);
+
+// ── 프리셋: 활성 아바타 번들(에셋·폰트·테마·목소리) 적용 ──
+async function loadPreset(){ try{
+  const p=await (await fetch(BRIDGE+'/preset')).json(); PRESET=p;
+  if(p.avatar?.segments_base) SEG_BASE=p.avatar.segments_base;
+  if(p.avatar?.manifest) MANIFEST_URL=p.avatar.manifest;
+  if(p.avatar?.source) $('hdav').src=p.avatar.source;
+  if(p.name){ curName=p.name; $('nameV').textContent=p.name; $('nameC').textContent=p.name; updateTitle(); }
+  if(p.font?.url && p.font?.family){
+    const st=document.createElement('style');
+    st.textContent=`@font-face{font-family:'${p.font.family}';src:url('${p.font.url}') format('woff2');font-display:swap}`;
+    document.head.appendChild(st);
+    document.body.style.fontFamily=`'${p.font.family}',system-ui,'Segoe UI',sans-serif`;
+  }
+}catch(e){ /* 프리셋 미연결 → 기본값 유지 */ } }
+
+// ── 이름: 프리셋 우선, 없으면 Hermes 페르소나(SOUL.md) ──
+async function loadName(){ if(PRESET&&PRESET.name) return;
+  try{ const c=await (await fetch(BRIDGE+'/config')).json(); curName=c.name||'미나미'; }catch(e){ curName='미나미'; }
+  $('nameV').textContent=curName; $('nameC').textContent=curName; updateTitle(); }
+
+// ── 창 관리: 크기조절 · 합쳐진/분리 모드 · 스냅 ──
+(function(){ const d=$('divider'); if(!d)return; let on=false;
+  d.addEventListener('mousedown',e=>{ on=true; d.classList.add('drag'); e.preventDefault(); });
+  window.addEventListener('mousemove',e=>{ if(!on)return; const w=Math.max(200,Math.min(window.innerWidth*0.7,e.clientX-16)); document.documentElement.style.setProperty('--callw',w+'px'); });
+  window.addEventListener('mouseup',()=>{ on=false; d.classList.remove('drag'); });
+})();
+function toggleMode(){ const call=document.querySelector('.call'); const sep=document.body.classList.toggle('sep');
+  if(sep){ call.style.width='300px'; call.style.top='24px'; call.style.right='24px'; call.style.left='auto'; call.style.height=''; }
+  else{ call.removeAttribute('style'); } }
+(function floatDrag(){ const call=document.querySelector('.call'), hd=call.querySelector('.hd'); let dr=false,ox,oy;
+  hd.addEventListener('mousedown',e=>{ if(!document.body.classList.contains('sep'))return; dr=true; const r=call.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top; call.style.right='auto'; e.preventDefault(); });
+  window.addEventListener('mousemove',e=>{ if(!dr)return; call.style.left=(e.clientX-ox)+'px'; call.style.top=(e.clientY-oy)+'px'; });
+  window.addEventListener('mouseup',()=>{ if(!dr)return; dr=false; const r=call.getBoundingClientRect(),m=16,W=innerWidth,H=innerHeight;
+    call.style.left=((r.left+r.width/2<W/2)?m:W-r.width-m)+'px'; call.style.top=((r.top+r.height/2<H/2)?m:H-r.height-m)+'px'; call.style.right='auto'; });
+})();
+
+// ── 테마: 다크/라이트 색조합 선택 (localStorage 유지) ──
+const T_DARK={ panel:'#14141c',panel2:'#181822',line:'#26262f',txt:'#ececf2',dim:'#8f8fa6',field:'#0e0e15',hover:'#20202b',ok:'#34d399',warn:'#fbbf24' };
+const T_LIGHT_OK={ ok:'#0d9f6e',warn:'#c98a12' };
+const THEMES=[
+  {id:'graphite',name:'그래파이트',en:'Graphite', mode:'dark',bg:'#0b0b0f',accent:'#64748b'},
+  {id:'crimson', name:'크림슨',   en:'Crimson',  mode:'dark',bg:'#0e0a0b',accent:'#e0384e'},
+  {id:'ember',   name:'엠버',     en:'Ember',    mode:'dark',bg:'#100b08',accent:'#ef6c3b'},
+  {id:'gold',    name:'골드',     en:'Gold',     mode:'dark',bg:'#100d07',accent:'#d4a537'},
+  {id:'teal',    name:'틸',       en:'Teal',     mode:'dark',bg:'#08100f',accent:'#14b8a6'},
+  {id:'rose',    name:'네온 로제', en:'Neon Rosé',mode:'dark',bg:'#0f0910',accent:'#ff4d8d'},
+  {id:'azure',   name:'애저',     en:'Azure',    mode:'dark',bg:'#070c12',accent:'#3b82f6'},
+  {id:'violet',  name:'AI 컬러',  en:'AI Color', mode:'dark',bg:'#0b0b0f',accent:'#8b5cf6'},
+  {id:'paper',   name:'페이퍼',   en:'Paper', mode:'light',accent:'#1f2937',v:{bg:'#eeeef1',panel:'#ffffff',panel2:'#f4f4f7',line:'#e4e4ea',txt:'#1b1b22',dim:'#71717f',field:'#f1f1f5',hover:'#e9e9ef'}},
+  {id:'rose_l',  name:'로제',     en:'Rosé',  mode:'light',accent:'#d6446b',v:{bg:'#f6eff2',panel:'#ffffff',panel2:'#faf4f7',line:'#eddfe5',txt:'#241a1f',dim:'#8a7580',field:'#faf5f8',hover:'#f2e6ec'}},
+  {id:'sky_l',   name:'스카이',   en:'Sky',   mode:'light',accent:'#2f6fed',v:{bg:'#eaf0f7',panel:'#ffffff',panel2:'#f3f7fc',line:'#dde6f0',txt:'#14202e',dim:'#5f7185',field:'#f4f8fd',hover:'#e6eef8'}},
+  {id:'sand_l',  name:'샌드',     en:'Sand',  mode:'light',accent:'#b26a2e',v:{bg:'#f6f2ea',panel:'#fffdf9',panel2:'#f9f5ee',line:'#e8e0d2',txt:'#241f16',dim:'#8a7d68',field:'#f9f5ee',hover:'#efe7d8'}},
+];
+let curTheme='graphite';
+function themeVars(t){ const base = t.mode==='light' ? {...T_LIGHT_OK, ...t.v} : {...T_DARK, bg:t.bg}; return {...base, accent:t.accent, u:t.accent, bg:base.bg||t.bg}; }
+function applyTheme(id){ const t=THEMES.find(x=>x.id===id); if(!t)return; curTheme=id; const v=themeVars(t);
+  const r=document.documentElement.style; for(const k in v) r.setProperty('--'+k, v[k]);
+  try{ localStorage.setItem('avatarTheme',id); }catch(e){}
+  document.querySelectorAll('.thememenu .sw').forEach(s=>s.classList.toggle('on', s.dataset.id===id)); }
+function buildThemeMenu(){ const m=$('thememenu'); if(m.childElementCount)return;
+  // 언어
+  const ll=document.createElement('div'); ll.className='lbl'; ll.textContent=t('language'); m.appendChild(ll);
+  const lr=document.createElement('div'); lr.className='langrow';
+  [['ko','한국어'],['en','English']].forEach(([code,label])=>{ const b=document.createElement('div'); b.className='langbtn'+(curLang===code?' on':''); b.textContent=label; b.onclick=()=>setLang(code); lr.appendChild(b); });
+  m.appendChild(lr);
+  // 테마
+  const mk=(list,label)=>{ const l=document.createElement('div'); l.className='lbl'; l.textContent=label; m.appendChild(l);
+    const g=document.createElement('div'); g.className='swgrid';
+    list.forEach(th=>{ const v=themeVars(th); const s=document.createElement('div'); s.className='sw'; s.dataset.id=th.id;
+      s.innerHTML=`<span class="disc" style="background:${v.bg}"><i style="background:${v.accent};border-color:${v.accent}"></i></span><span class="nm">${curLang==='en'?th.en:th.name}</span>`;
+      s.onclick=()=>applyTheme(th.id); g.appendChild(s); }); m.appendChild(g); };
+  mk(THEMES.filter(th=>th.mode==='dark'),t('dark')); mk(THEMES.filter(th=>th.mode==='light'),t('light'));
+  m.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on', s.dataset.id===curTheme)); }
+function toggleTheme(e){ e&&e.stopPropagation(); buildThemeMenu(); renderSys(); buildMicMenu(); buildTtsMenu(); const m=$('thememenu'); if(m.classList.contains('show')){ m.classList.remove('show'); return; }
+  const b=$('themeBtn').getBoundingClientRect(); m.style.top=(b.bottom+8)+'px'; m.style.left=Math.max(12,Math.min(b.right-280, innerWidth-292))+'px'; m.classList.add('show'); pollStatus(); }
+
+// ── 음성 입력: 마이크 → Silero VAD(로컬) → STT(faster-whisper) → 채팅 경로 ──
+let _vad=null, micOn=false, _vadPaused=false, _micStream=null;
+
+// ── 마이크 장치 선택 (🎨 메뉴) — 브라우저가 엉뚱한 장치를 잡을 때 지정 ──
+function micDevId(){ try{ return localStorage.getItem('micDevice')||''; }catch(e){ return ''; } }
+async function buildMicMenu(){
+  const m=$('thememenu'); if(!m||!m.childElementCount) return;
+  let d=document.getElementById('micmenu');
+  if(!d){ const l=document.createElement('div'); l.className='lbl'; l.textContent=t('mic_device');
+    m.appendChild(l); d=document.createElement('div'); d.id='micmenu'; m.appendChild(d); }
+  let devs=[]; try{ devs=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='audioinput'); }catch(e){}
+  const noLabels=devs.length>0 && !devs.some(x=>x.label);
+  const cur=micDevId(); d.innerHTML='';
+  const sel=document.createElement('select'); sel.className='micsel';
+  const o0=document.createElement('option'); o0.value=''; o0.textContent=t('mic_default'); sel.appendChild(o0);
+  for(const dev of devs){ const o=document.createElement('option'); o.value=dev.deviceId;
+    o.textContent=dev.label||(t('mic_device')+' '+(dev.deviceId||'').slice(0,6));
+    if(dev.deviceId===cur) o.selected=true; sel.appendChild(o); }
+  sel.onchange=()=>setMicDevice(sel.value);
+  d.appendChild(sel);
+  if(noLabels){ const b=document.createElement('div'); b.className='langbtn'; b.style.marginTop='6px';
+    b.textContent=t('mic_grant');
+    b.onclick=async()=>{ try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(x=>x.stop()); }catch(e){} buildMicMenu(); };
+    d.appendChild(b); }
+}
+async function setMicDevice(id){
+  try{ localStorage.setItem('micDevice',id); }catch(e){}
+  const wasOn=micOn;
+  try{ _vad&&_vad.pause(); }catch(e){}
+  try{ _vad&&_vad.destroy&&_vad.destroy(); }catch(e){}
+  try{ _micStream&&_micStream.getTracks().forEach(x=>x.stop()); }catch(e){}
+  _vad=null; micOn=false; const btn=$('micBtn'); btn.style.color=''; btn.style.filter='';
+  appendCmd('🎙 '+t('mic_device')+(id?' 변경':' → '+t('mic_default')));
+  if(wasOn) toggleMic();                       // 새 장치로 즉시 재시작
+}
+
+// ── TTS 백엔드 선택: 설정에서 음성엔진 갈아끼우기 (qwen/elevenlabs/openai_compat/piper) ──
+const _K=(ko,en)=>curLang==='en'?en:ko;
+const _TTS_DESC={ qwen:_K('로컬·클로닝(기본)','Local · cloning (default)'),
+  elevenlabs:_K('클라우드·고품질 클로닝(API키 필요)','Cloud · premium cloning (API key)'),
+  openai_compat:_K('OpenAI 호환 경량 로컬','OpenAI-compatible lightweight local'),
+  piper:_K('초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)') };
+async function buildTtsMenu(){
+  const m=$('thememenu'); if(!m||!m.childElementCount) return;
+  let d=document.getElementById('ttsmenu');
+  if(!d){ const l=document.createElement('div'); l.className='lbl'; l.textContent=_K('음성 엔진','Voice engine');
+    m.appendChild(l); d=document.createElement('div'); d.id='ttsmenu'; m.appendChild(d); }
+  d.innerHTML=_K('불러오는 중…','Loading…');
+  let data; try{ data=await (await fetch(TTS+'/providers',{cache:'no-store'})).json(); }
+  catch(e){ d.textContent=_K('TTS 서버 응답 없음','TTS server offline'); return; }
+  d.innerHTML='';
+  const sel=document.createElement('select'); sel.className='micsel';
+  for(const p of data.providers){
+    const o=document.createElement('option'); o.value=p.provider;
+    const tag=p.configured?'':_K(' (설정 필요)',' (needs setup)');
+    o.textContent=p.provider+' — '+(_TTS_DESC[p.provider]||'')+tag;
+    if(p.provider===data.active) o.selected=true;
+    sel.appendChild(o);
+  }
+  sel.onchange=()=>setTtsProvider(sel.value);
+  d.appendChild(sel);
+  // elevenlabs 선택 시 voice_id 입력 + 안내
+  const act=data.providers.find(p=>p.provider===data.active);
+  if(data.active==='elevenlabs'){
+    const inp=document.createElement('input'); inp.className='micsel'; inp.style.marginTop='6px';
+    inp.placeholder=_K('ElevenLabs voice_id','ElevenLabs voice_id');
+    inp.onchange=()=>setTtsProvider('elevenlabs',{voice_id:inp.value.trim()});
+    d.appendChild(inp);
+    const note=document.createElement('div'); note.className='lbl'; note.style.opacity='.7';
+    note.textContent=_K('API키: 환경변수 ELEVENLABS_API_KEY','API key: env ELEVENLABS_API_KEY');
+    d.appendChild(note);
+  }
+  if(act && !act.ready && data.active!=='qwen'){
+    const w=document.createElement('div'); w.className='lbl'; w.style.color='var(--warn,#e0a030)';
+    w.textContent=_K('⚠ 아직 준비 안 됨 — 설정 확인','⚠ not ready — check settings');
+    d.appendChild(w);
+  }
+  if(data.active==='qwen') await buildCloneUI(d);   // qwen 음성 클로닝 섹션
+}
+async function buildCloneUI(d){
+  let st={}; try{ st=await (await fetch(TTS+'/clone/status',{cache:'no-store'})).json(); }catch(e){}
+  const box=document.createElement('div'); box.style.marginTop='8px';
+  const hd=document.createElement('div'); hd.className='lbl';
+  hd.textContent=_K('음성 클로닝 (Qwen)','Voice cloning (Qwen)')
+    +(st.active?_K(' · 적용됨: '+(st.ref||'ref'),' · on: '+(st.ref||'ref')):'');
+  box.appendChild(hd);
+  const file=document.createElement('input'); file.type='file'; file.accept='audio/*'; file.className='micsel';
+  box.appendChild(file);
+  const txt=document.createElement('input'); txt.className='micsel'; txt.style.marginTop='6px';
+  txt.placeholder=_K('레퍼런스 전사(선택, 정확도↑)','reference transcript (optional, better accuracy)');
+  box.appendChild(txt);
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:6px;margin-top:6px;align-items:center';
+  const apply=document.createElement('div'); apply.className='langbtn'; apply.style.flex='1'; apply.textContent=_K('클론 적용','Apply clone');
+  apply.onclick=async()=>{
+    if(!file.files||!file.files[0]){ appendCmd(_K('🎤 레퍼런스 오디오를 선택하세요','🎤 pick a reference clip')); return; }
+    apply.textContent=_K('처리 중…(모델 로드)','Processing…(loading model)');
+    const fd=new FormData(); fd.append('audio',file.files[0]); if(txt.value.trim())fd.append('ref_text',txt.value.trim());
+    try{ const r=await (await fetch(TTS+'/clone',{method:'POST',body:fd})).json();
+      appendCmd(r.ok?_K('🎤 목소리 클론 적용됨','🎤 voice cloned'):_K('🎤 클론 실패: ','🎤 clone failed: ')+(r.error||''));
+    }catch(e){ appendCmd(_K('🎤 클론 요청 실패(TTS 서버 확인)','🎤 clone request failed')); }
+    buildTtsMenu();
+  };
+  row.appendChild(apply);
+  if(st.active){ const clr=document.createElement('div'); clr.className='langbtn'; clr.textContent=_K('해제','Clear');
+    clr.onclick=async()=>{ try{ await fetch(TTS+'/clone/clear',{method:'POST'}); appendCmd(_K('🎤 프리셋 음성으로 복귀','🎤 back to preset voice')); }catch(e){} buildTtsMenu(); };
+    row.appendChild(clr); }
+  box.appendChild(row);
+  const note=document.createElement('div'); note.className='lbl'; note.style.opacity='.7'; note.style.marginTop='4px';
+  note.textContent=_K('5~15초 깨끗한 음성 권장 · 적용 시 GPU 사용','5-15s clean speech recommended · uses GPU on apply');
+  box.appendChild(note);
+  d.appendChild(box);
+}
+async function setTtsProvider(name, settings){
+  try{
+    const body={name}; if(settings)body.settings=settings;
+    const r=await (await fetch(TTS+'/provider',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    appendCmd('🔊 '+_K('음성 엔진 → ','Voice engine → ')+name+(r.ready?'':_K(' (설정 필요)',' (needs setup)')));
+  }catch(e){ appendCmd('🔊 '+_K('엔진 전환 실패','engine switch failed')); }
+  buildTtsMenu();
+}
+try{ navigator.mediaDevices.addEventListener('devicechange',()=>buildMicMenu()); }catch(e){}
+function _wav16(f32){ // Float32 @16k mono -> WAV(PCM16) Blob
+  const n=f32.length, buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+  const ws=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  ws(0,'RIFF'); v.setUint32(4,36+n*2,true); ws(8,'WAVEfmt '); v.setUint32(16,16,true);
+  v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,16000,true);
+  v.setUint32(28,32000,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){ const s=Math.max(-1,Math.min(1,f32[i])); v.setInt16(44+i*2, s<0?s*0x8000:s*0x7FFF, true); }
+  return new Blob([buf],{type:'audio/wav'});
+}
+async function _onUtterance(f32){
+  if(ttsPlaying||stateKey==='speaking') return;          // 아바타 발화 중 픽업 무시
+  if(f32.length<16000*0.35) return;                       // 0.35초 미만 = 노이즈
+  try{
+    const r=await fetch(STT+'/stt?hint='+encodeURIComponent(curName||''),
+      {method:'POST',headers:{'Content-Type':'audio/wav'},body:_wav16(f32)});
+    const j=await r.json();
+    const text=(j.text||'').trim();
+    if(!text) return;
+    appendUser(text); sendToBridge(text);                 // 타이핑과 동일 경로
+  }catch(e){ console.warn('stt fail',e); }
+}
+async function toggleMic(){
+  const btn=$('micBtn');
+  if(micOn){ micOn=false; try{ _vad&&_vad.pause(); }catch(e){} btn.style.color=''; btn.style.filter=''; btn.textContent='🎙'; return; }
+  try{
+    if(!_vad){
+      if(typeof vad==='undefined'||typeof ort==='undefined'){ appendAgent('⚠ VAD 라이브러리 로드 실패 (player/vad/ 확인)'); return; }
+      ort.env.wasm.wasmPaths='vad/';
+      // 스트림을 직접 확보 → 어떤 장치를 듣는지 확인 가능 + 에코캔슬 강제
+      let stream=null, label='(기본 장치)';
+      const base={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+      const want=micDevId();
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({audio: want?{...base,deviceId:{exact:want}}:base});
+      }catch(e){
+        if(want){ // 선택 장치가 사라짐(언플러그 등) → 기본 장치 폴백
+          appendAgent('⚠ 선택한 마이크를 열 수 없어('+(e.name||e)+') — 기본 장치로 전환');
+          try{ localStorage.removeItem('micDevice'); }catch(_){}
+          try{ stream=await navigator.mediaDevices.getUserMedia({audio:base}); }
+          catch(e2){ appendAgent('⚠ 마이크 권한/장치 오류: '+(e2.name||e2)); return; }
+        } else { appendAgent('⚠ 마이크 권한/장치 오류: '+(e.name||e)); return; }
+      }
+      _micStream=stream;
+      label=(stream.getAudioTracks()[0]||{}).label||label;
+      const opts={
+        workletURL:'vad/vad.worklet.bundle.min.js', modelURL:'vad/silero_vad.onnx',
+        positiveSpeechThreshold:0.5, negativeSpeechThreshold:0.35,   // 완화 (BT 마이크 레벨 대응)
+        minSpeechFrames:3, redemptionFrames:10, preSpeechPadFrames:3,
+        onSpeechStart:()=>{ btn.style.filter='drop-shadow(0 0 8px var(--ok))'; },
+        onVADMisfire:()=>{ btn.style.filter=''; },
+        onSpeechEnd:(audio)=>{ btn.style.filter=''; _onUtterance(audio); },
+        onFrameProcessed:(p)=>{ if(p&&typeof p.isSpeech==='number'){        // 실시간 레벨 글로우
+          btn.style.textShadow=`0 0 ${Math.round(p.isSpeech*10)}px var(--accent)`; } },
+      };
+      try{ _vad=await vad.MicVAD.new({...opts, stream}); }
+      catch(e1){ // stream 옵션 미지원 폴백: VAD가 자체 getUserMedia
+        try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+        _micStream=null;
+        try{ _vad=await vad.MicVAD.new(opts); }
+        catch(e2){ appendAgent('⚠ VAD 초기화 실패: '+(e2.message||e2)); return; }
+      }
+      appendCmd('🎙 듣는 중: '+label);   // 어떤 마이크가 잡혔는지 즉시 확인
+    }
+    _vad.start(); micOn=true; _vadPaused=false;
+    btn.style.color='var(--accent)'; btn.textContent='🎙';
+  }catch(e){ appendAgent('⚠ 마이크를 열 수 없어: '+(e.message||e)); }
+}
+// 하프듀플렉스 감시: 아바타 말하는 동안 VAD 정지, 끝나면 재개
+setInterval(()=>{ if(!micOn||!_vad) return;
+  const busy=ttsPlaying||stateKey==='speaking';
+  if(busy&&!_vadPaused){ try{_vad.pause();}catch(e){} _vadPaused=true; $('micBtn').textContent='⏸'; }
+  else if(!busy&&_vadPaused){ try{_vad.start();}catch(e){} _vadPaused=false; $('micBtn').textContent='🎙'; }
+},250);
+
+// ── 입력: 텍스트 / 슬래시 / 파일 ──
+async function sendToBridge(text){ try{ await fetch(BRIDGE+'/hermes/in',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})}); }catch(e){ appendAgent(t('bridge_off')); } }
+function sendChat(){ const inp=$('chatInput'); const t=inp.value.trim(); if(!t)return; inp.value=''; $('skillmenu').style.display='none';
+  if(t.toLowerCase()==='/sam'){ openPerf(); return; }   // 이스터에그
+  if(t.startsWith('/')) appendCmd(t); else appendUser(t); sendToBridge(t); }
+
+// ── 이스터에그: 퍼포먼스 플레이어 ──
+function previewSeg(s,el){ document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on')); el&&el.classList.add('on');
+  if(s.kind==='loop'||s.group==='alive'){ loopSeg(s.name); setBadge(s.emotion,s.intensity); }
+  else { setBadge(s.emotion,s.intensity); playOnceAsync(s.name).then(()=>loopSeg(idleBase())); } }
+function buildPerf(){ const g=$('segGrid'); if(!g||g.childElementCount)return; $('segCount').textContent='('+SEGS.length+')';
+  const order={transition:0,loop:1}; const list=[...SEGS].sort((a,b)=>(order[a.kind]??2)-(order[b.kind]??2)||a.name.localeCompare(b.name));
+  for(const s of list){ const c=document.createElement('div'); c.className='chip '+(s.group==='alive'?'alive':(s.kind==='loop'?'loop':''));
+    c.innerHTML=`<span class="n">${s.name}</span><span class="m">${s.emotion||s.group||''} · ${s.frames||''}f</span>`;
+    c.onclick=()=>previewSeg(s,c); g.appendChild(c); }
+  const hints=['[happy] 좋아! [wink] 윙크','[concerned:0.8] 음… 이거 확인이 필요해','[surprise] 헐 [excited] 대박!','[skeptical] 진짜야? [smug] 거봐'];
+  const h=$('perfHints'); hints.forEach(x=>{ const s=document.createElement('span'); s.textContent=x; s.onclick=()=>{$('perfIn').value=x;}; h.appendChild(s); }); }
+function openPerf(){ buildPerf(); $('perf').classList.add('show'); setTimeout(()=>$('perfIn')?.focus(),150); }
+function closePerf(){ $('perf').classList.remove('show'); }
+async function runPerf(){ const t=$('perfIn').value.trim(); if(!t)return; closePerf();
+  try{ await fetch(BRIDGE+'/hermes/out',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})}); }
+  catch(e){ appendAgent(t('bridge_off_parse')); } }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePerf(); });
+function toggleSkills(){ const m=$('skillmenu'); if(m.style.display==='block'){ m.style.display='none'; return; }
+  m.innerHTML=''; SKILLS.forEach(s=>{ const d=document.createElement('div'); d.textContent=s; d.onclick=()=>{ $('chatInput').value=s+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
+  m.style.display='block'; }
+$('fileInput')?.addEventListener('change',e=>{ for(const f of e.target.files){ const n=document.createElement('div'); n.className='file'; n.innerHTML=`<span class="ic">📎</span><span class="fn">${f.name}</span><span style="margin-left:auto;color:var(--dim);font-size:11px">${(f.size/1024).toFixed(0)}KB</span>`; addRow('u',n); sendToBridge('[파일 첨부] '+f.name); } e.target.value=''; });
+
+async function boot(){
+  await loadPreset();                                    // 프리셋 먼저 (경로·이름·폰트·테마)
+  try{ const m=await (await fetch(MANIFEST_URL,{cache:'no-store'})).json(); SEGS=m.segments; SEG_VER=m.version||'';
+    for(const s of SEGS){ byName[s.name]=s;
+      if(s.kind==='transition'){
+        if(s.tier==='mood_variant'&&s.mood){ (byEmoMood[s.emotion]=byEmoMood[s.emotion]||{})[s.mood]=s; }
+        else if(!byEmotion[s.emotion]) byEmotion[s.emotion]=s;
+      }
+      if(s.settle_times&&s.settle_times.length) settleT[s.name]=s.settle_times; } }catch(e){}
+  $('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendChat(); } if(e.key==='/'&&!$('chatInput').value){ /* slash starts command */ } });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.skillmenu')&&!e.target.closest('[onclick*=toggleSkills]')) $('skillmenu').style.display='none';
+    if(!e.target.closest('.thememenu')&&!e.target.closest('#themeBtn')) $('thememenu').classList.remove('show'); });
+  try{ curLang=localStorage.getItem('avatarLang')||'ko'; }catch(e){}
+  try{ applyTheme(localStorage.getItem('avatarTheme') || (PRESET&&PRESET.theme) || 'graphite'); }catch(e){ applyTheme('graphite'); }
+  applyLang();
+  loadName();
+  try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
+  idle();
+  try{ const es=new EventSource(BRIDGE+'/events');
+    es.onopen=()=>{ esConnected=true; pollStatus(); };
+    es.onmessage=(e)=>{ try{ play(JSON.parse(e.data)); }catch(_){ } };
+    es.onerror=()=>{ esConnected=false; setLive('live_off'); if(stateKey==='online')_dotByAgent(); };
+  }catch(_){}
+  pollStatus();
+}
+boot();
+</script>
+</body>
+</html>

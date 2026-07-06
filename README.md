@@ -1,0 +1,64 @@
+# Ghost Vessel — give your local agent a face
+
+> **Bind your local LLM agent (the *ghost*) into an avatar body (the *vessel*).**
+> A monitor-resident, video-call-style avatar that **fronts your personal AI agent**
+> (Hermes / OpenClaw, or anything) — replacing the chat tab you keep open to talk to it.
+
+Your agent replies; the avatar **performs** it: fine-grained facial emotion beats, a
+persistent **mood** that sinks when you scold it and brightens when you praise it, idle
+states that breathe, blink, and sometimes rest their eyes — all from **pre-rendered
+clips**, so the GPU stays free at runtime (no live inference).
+
+## How it works
+
+```
+you type ──► chat UI ──► bridge ──► relay connector ──► your agent (Hermes/OpenClaw)
+                                                            │ reply (emotion-tagged)
+video window ◄── performance player ◄── parser (3 planes) ◄─┘
+  ▲ emotion beat clips + mood-based idle           │
+  └── mood/affinity tracker (praise/scold, persistent state)
+```
+
+- **3-plane output**: the reply splits into action (emotion beats) / dialogue (spoken
+  via local TTS) / data (code & files → chat cards, never read aloud).
+- **Emotion engine**: expression segments (valence/arousal-tagged), tag-less fallback
+  (emoji/keyword inference), blink-aligned seamless idle loops, a head-pose "settle
+  gate" so expressions reveal when the head is frontal.
+- **Mood & affinity**: short-term mood decays toward a long-term relationship baseline.
+  Keep scolding → it rests in a subdued idle. Persistent across restarts.
+- **Agent-agnostic**: Hermes (relay connector contract, WS server) and OpenClaw
+  (gateway WS client) adapters, plus a demo responder with zero setup. The agent is
+  told only the emotions your avatar actually has, so partial avatars just work.
+- **Swappable voice**: local Qwen3-TTS by default (with voice cloning), or ElevenLabs /
+  any OpenAI-compatible / Piper — picked in settings. Voice input via VAD + local STT.
+
+## Quickstart (Windows)
+
+1. Prereqs: Python 3.11, an agent (optional — demo mode works without one).
+2. Get an avatar preset → drop its folder into `presets/`, set `presets/active.txt`.
+3. Link your agent: `python bridge/setup_connector.py` (picks Hermes/OpenClaw,
+   Windows/WSL2, writes the connection + injects the avatar output contract into the
+   agent's prompt, scoped to this channel).
+4. Run the stack (TTS :8899 · bridge :8900 · connector :8901 · static :8777) and open
+   `http://127.0.0.1:8777/player/index.html`. On Windows: `windows\start_avatar.bat`.
+
+## Avatars (presets)
+
+An avatar is a **pure-data bundle** (clips + persona + theme + voice + emotion map) —
+no code runs, so installing one is safe. Presets are **folder-mapped**: drop a folder
+of clips named by convention (`happy.mp4`, `angry.mp4`, `idle.mp4`, …) into `presets/`
+and the engine maps them automatically — the folder name is the avatar's name.
+
+- **Get the demo avatar (Minami)** — pay-what-you-want (min $1) download. *(link)*
+- **Commission a custom avatar** — made to order. *(contact)*
+- **Make your own** — the full, reproducible build method (source still → LivePortrait
+  face-reenactment → idle loops → package) and the bundle/filename spec are in
+  [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md). Keep it SFW; own your likeness rights.
+
+The repo ships **engine only** — no avatar bundled (`presets/_template/` is a starter
+skeleton). Bring your own, buy one, or commission one.
+
+## License
+
+Engine: **MIT** (see `LICENSE`). Presets are separately licensed by their creators.
+Open-sourced in donation-ware spirit — issues / PRs welcome. 🛠️
