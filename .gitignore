@@ -43,6 +43,9 @@ presets/*/manifest.json
 bridge/connector_config.json
 dist/
 
+# ── editor / tooling (Claude Code, IDE) ──
+.claude/
+
 # ── OS noise ──
 Thumbs.db
 desktop.ini
