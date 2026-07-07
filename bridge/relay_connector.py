@@ -33,7 +33,12 @@ for _s in (sys.stdout, sys.stderr):
 import websockets
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CFG = json.load(open(os.path.join(HERE, "connector_config.json"), encoding="utf-8"))
+# 설정 경로: 프리즌 배포는 GV_ROOT(패키지 루트), 아니면 소스 dir. 없으면 기본값으로 데모 동작.
+_ROOT = os.environ.get("GV_ROOT") or (os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else HERE)
+try:
+    CFG = json.load(open(os.path.join(_ROOT, "connector_config.json"), encoding="utf-8"))
+except (FileNotFoundError, ValueError):
+    CFG = {}
 
 AGENT      = CFG.get("agent", "hermes")
 BRIDGE_URL = CFG.get("bridge_url", "http://127.0.0.1:8900").rstrip("/")
