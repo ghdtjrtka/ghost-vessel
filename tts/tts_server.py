@@ -9,7 +9,7 @@ GET  /health     활성 provider + ready
 GET  /providers  등록된 백엔드 목록 + 설정/준비 상태
 POST /provider   {name} 활성 백엔드 전환(설정 저장, 다음 합성 때 지연 로드)
 """
-import os, sys, threading, itertools, time
+import os, sys, threading, itertools, time, re
 from contextlib import contextmanager
 for _s in (sys.stdout, sys.stderr):      # cmd(cp949) 콘솔 유니코드 print 크래시 방지
     try: _s.reconfigure(encoding="utf-8", errors="replace")
@@ -42,11 +42,28 @@ def _fifo():
             _serving[0] += 1
             _cv.notify_all()
 
+# 로컬 전용 — 악성 웹페이지의 크로스사이트 제어(provider 변경·설치·클로닝·합성) 차단.
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+
+@app.before_request
+def _origin_guard():
+    if request.method == "OPTIONS":
+        return None
+    o = request.headers.get("Origin")
+    if o and not _LOCAL_ORIGIN.match(o):
+        return ("cross-origin blocked", 403)
+    h = (request.headers.get("Host") or "").split(":")[0]
+    if h and h not in ("127.0.0.1", "localhost"):
+        return ("bad host", 403)
+
 @app.after_request
 def cors(r):
-    r.headers["Access-Control-Allow-Origin"] = "*"
+    o = request.headers.get("Origin")
+    if o and _LOCAL_ORIGIN.match(o):
+        r.headers["Access-Control-Allow-Origin"] = o
     r.headers["Access-Control-Allow-Headers"] = "Content-Type"
     r.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    r.headers["Vary"] = "Origin"
     return r
 
 @app.route("/health")

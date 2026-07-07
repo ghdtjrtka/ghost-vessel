@@ -9,7 +9,7 @@ WAV -> here -> text -> the normal chat path (/hermes/in). Model defaults to
 "small" (good Korean, ~0.5GB); override with STT_MODEL. Tries CUDA, falls back
 to CPU int8 (fine for short utterances).
 """
-import io, os, sys, threading
+import io, os, sys, threading, re
 for _s in (sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass
@@ -48,11 +48,28 @@ def get_model():
                     raise last
     return _model
 
+# 로컬 전용 — 외부 웹페이지가 모델 로드/전사를 트리거하지 못하게 차단.
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+
+@app.before_request
+def _origin_guard():
+    if request.method == "OPTIONS":
+        return None
+    o = request.headers.get("Origin")
+    if o and not _LOCAL_ORIGIN.match(o):
+        return ("cross-origin blocked", 403)
+    h = (request.headers.get("Host") or "").split(":")[0]
+    if h and h not in ("127.0.0.1", "localhost"):
+        return ("bad host", 403)
+
 @app.after_request
 def cors(r):
-    r.headers["Access-Control-Allow-Origin"] = "*"
+    o = request.headers.get("Origin")
+    if o and _LOCAL_ORIGIN.match(o):
+        r.headers["Access-Control-Allow-Origin"] = o
     r.headers["Access-Control-Allow-Headers"] = "Content-Type"
     r.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    r.headers["Vary"] = "Origin"
     return r
 
 @app.route("/health")

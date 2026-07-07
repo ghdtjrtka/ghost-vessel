@@ -178,8 +178,8 @@ const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 // required=true로 켠다(그때 첫 실행에 키 입력창). base = license-server(예: agepo.co.kr/license).
 // 패키저가 통파일 HTML의 <head>에 `<script>var GV_LICENSE_REQUIRED=true</script>`만 넣으면 켜짐(큰 JS 무수정).
 const LICENSE={ required:(typeof GV_LICENSE_REQUIRED!=='undefined'&&GV_LICENSE_REQUIRED),
-  base:(typeof GV_LICENSE_BASE!=='undefined'?GV_LICENSE_BASE:'https://agepo.co.kr/license'),
-  store:(typeof GV_LICENSE_STORE!=='undefined'?GV_LICENSE_STORE:'https://namanavi.com/gv/') };
+  base:(typeof GV_LICENSE_BASE!=='undefined'?GV_LICENSE_BASE:'https://ghostvessel.space/license'),
+  store:(typeof GV_LICENSE_STORE!=='undefined'?GV_LICENSE_STORE:'https://ghostvessel.space/') };
 async function validateKey(key){
   try{ const r=await fetch(LICENSE.base+'/gv/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:(key||'').trim()})});
     return !!(await r.json()).valid; }catch(e){ return false; } }

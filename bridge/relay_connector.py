@@ -21,7 +21,7 @@ So the data plane / performance parsing / SSE all stay in bridge_server.py; this
 process only owns the agent transport. Run: `python relay_connector.py`.
 """
 from __future__ import annotations
-import asyncio, base64, hashlib, hmac, json, os, sys, threading, time, uuid, urllib.request
+import asyncio, base64, hashlib, hmac, json, os, re, sys, threading, time, uuid, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Windows consoles default to cp949 here; force UTF-8 so log lines with em-dash /
@@ -313,25 +313,49 @@ class OpenClawConnector:
 # ══════════════════════════════════════════════════════════════════════════
 CONNECTOR = HermesConnector() if AGENT == "hermes" else OpenClawConnector()
 
+# 로컬 전용 제어 HTTP — 악성 웹페이지가 /say로 에이전트에 명령 못 넣게 오리진/호스트 가드.
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+
 class Ctrl(BaseHTTPRequestHandler):
     def log_message(self, *a):  # quiet
         pass
+
+    def _guard(self):
+        o = self.headers.get("Origin")
+        if o and not _LOCAL_ORIGIN.match(o):
+            self._json(403, {"error": "cross-origin blocked"}); return False
+        h = (self.headers.get("Host") or "").split(":")[0]
+        if h and h not in ("127.0.0.1", "localhost"):
+            self._json(403, {"error": "bad host"}); return False
+        return True
 
     def _json(self, code, obj):
         body = json.dumps(obj).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        o = self.headers.get("Origin")
+        if o and _LOCAL_ORIGIN.match(o):
+            self.send_header("Access-Control-Allow-Origin", o)
+        self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
         self.end_headers()
         self.wfile.write(body)
 
+    def do_OPTIONS(self):
+        self._json(204, {})
+
     def do_GET(self):
+        if not self._guard():
+            return
         if self.path.startswith("/status") or self.path.startswith("/health"):
             self._json(200, {"ok": True, **CONNECTOR.status()})
         else:
             self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        if not self._guard():
+            return
         if not self.path.startswith("/say"):
             self._json(404, {"error": "not found"}); return
         n = int(self.headers.get("Content-Length", 0) or 0)
