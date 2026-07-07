@@ -66,7 +66,9 @@ AVATAR_OUTPUT_CONTRACT = _contract()
 HERMES_CONFIG = os.environ.get("HERMES_CONFIG") or os.path.join(
     os.environ.get("LOCALAPPDATA", os.path.expanduser("~/AppData/Local")), "hermes", "config.yaml")
 OPENCLAW_WORKSPACE = os.path.expanduser("~/.openclaw/workspace")
-CFG_PATH = os.path.join(HERE, "connector_config.json")
+# 프리즌 배포(gv-setup.exe)에선 GV_ROOT(패키지 루트)에 써야 커넥터가 읽는다.
+_CFG_ROOT = os.environ.get("GV_ROOT") or (os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else HERE)
+CFG_PATH = os.path.join(_CFG_ROOT, "connector_config.json")
 OPENCLAW_DEFAULT_PORT = 18790
 
 

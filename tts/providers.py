@@ -564,6 +564,7 @@ def list_providers(cfg_all):
         d["installed"] = inst.installed() if hasattr(inst, "installed") else True
         d["meta"] = {**PROVIDER_META.get(name, {}),
                      "latency": PROVIDER_LATENCY.get(name, {"base": 1.0, "per_char": 0.1})}
-        d["can_install"] = install_steps(name) is not None
+        # 프리즌 패키지엔 Python/pip이 없어 pip 기반 설치 불가 → 설치 버튼 숨김(소스에서만).
+        d["can_install"] = (not getattr(sys, "frozen", False)) and (install_steps(name) is not None)
         out.append(d)
     return out

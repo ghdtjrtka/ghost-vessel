@@ -336,7 +336,11 @@ function applyLang(){ document.documentElement.lang=curLang;
   document.querySelectorAll('[data-i18n-title]').forEach(el=>el.title=t(el.dataset.i18nTitle));
   setState(stateKey); setLive(liveKey); updateTitle();
   const m=$('thememenu'); const shown=m.classList.contains('show'); m.innerHTML=''; buildThemeMenu(); if(shown)m.classList.add('show'); }
-function setLang(code){ curLang=code; try{ localStorage.setItem('avatarLang',code); }catch(e){} applyLang(); }
+function setLang(code){ curLang=code; try{ localStorage.setItem('avatarLang',code); }catch(e){} applyLang();
+  // 설정 메뉴는 한 번 빌드 후 캐시되므로 언어 변경 시 초기화 → 새 언어로 재빌드(열려있으면 즉시).
+  const m=$('thememenu');
+  if(m){ const shown=m.classList.contains('show'); m.innerHTML='';
+    if(shown){ buildThemeMenu(); renderSys(); buildMicMenu(); buildTtsMenu(); m.classList.add('show'); } } }
 let SEGS=[], byName={}, byEmotion={}, byEmoMood={}, voiceOn=true;
 // 3축: 현재 무드 베이스에 맞는 표정 변주가 있으면 우선 (없으면 뉴트럴판 폴백)
 function segFor(emo){ const mv=byEmoMood[emo]; const base=(MOOD&&MOOD.base)||'neutral';
@@ -779,16 +783,21 @@ async function setMicDevice(id){
 
 // ── TTS 백엔드 선택: 설정에서 음성엔진 갈아끼우기 (qwen/elevenlabs/openai_compat/piper) ──
 const _K=(ko,en)=>curLang==='en'?en:ko;
-const _TTS_DESC={ qwen:_K('로컬·클로닝(기본)','Local · cloning (default)'),
-  elevenlabs:_K('클라우드·고품질 클로닝(API키 필요)','Cloud · premium cloning (API key)'),
-  openai_compat:_K('OpenAI 호환 경량 로컬','OpenAI-compatible lightweight local'),
-  piper:_K('초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)'),
-  edge:_K('무료 클라우드·키 없음·한국어 우수(MS)','Free cloud · no key · great Korean (MS)'),
-  melo:_K('로컬·CPU·다국어(오프라인)','Local · CPU · multilingual (offline)') };
-// MS Edge 무료 TTS에서 현재 유효한 보이스만 (JiMin/YuJin/SeoHyeon은 폐기됨 → "No audio").
-const _EDGE_VOICES=[['ko-KR-SunHiNeural','한국어 여 (SunHi)'],['ko-KR-InJoonNeural','한국어 남 (InJoon)'],
-  ['ko-KR-HyunsuMultilingualNeural','한국어 남·다국어 (Hyunsu)'],
-  ['ja-JP-NanamiNeural','일본어 여 (Nanami)'],['en-US-AvaNeural','영어 여 (Ava)']];
+// [ko, en] — 로드 시점이 아니라 사용 시점(현재 언어)에 선택되도록 튜플로 저장.
+const _TTS_DESC={ qwen:['로컬·클로닝(기본)','Local · cloning (default)'],
+  elevenlabs:['클라우드·고품질 클로닝(API키 필요)','Cloud · premium cloning (API key)'],
+  openai_compat:['OpenAI 호환 경량 로컬','OpenAI-compatible lightweight local'],
+  piper:['초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)'],
+  edge:['무료 클라우드·키 없음·한국어 우수(MS)','Free cloud · no key · great Korean (MS)'],
+  melo:['로컬·CPU·다국어(오프라인)','Local · CPU · multilingual (offline)'] };
+const _ttsDesc=p=>((_TTS_DESC[p]||['',''])[curLang==='en'?1:0]);
+// MS Edge 무료 TTS에서 현재 유효한 보이스만 (JiMin/YuJin/SeoHyeon은 폐기됨 → "No audio"). [val, ko, en]
+const _EDGE_VOICES=[
+  ['ko-KR-SunHiNeural','한국어 여 · SunHi','Korean F · SunHi'],
+  ['ko-KR-InJoonNeural','한국어 남 · InJoon','Korean M · InJoon'],
+  ['ko-KR-HyunsuMultilingualNeural','한국어 남·다국어 · Hyunsu','Korean M·multi · Hyunsu'],
+  ['ja-JP-NanamiNeural','일본어 여 · Nanami','Japanese F · Nanami'],
+  ['en-US-AvaNeural','영어 여 · Ava','English F · Ava']];
 async function buildTtsMenu(){
   const m=$('thememenu'); if(!m||!m.childElementCount) return;
   let d=document.getElementById('ttsmenu');
@@ -802,7 +811,7 @@ async function buildTtsMenu(){
   for(const p of data.providers){
     const o=document.createElement('option'); o.value=p.provider;
     const tag=p.configured?'':_K(' (설정 필요)',' (needs setup)');
-    o.textContent=p.provider+' — '+(_TTS_DESC[p.provider]||'')+tag;
+    o.textContent=p.provider+' — '+_ttsDesc(p.provider)+tag;
     if(p.provider===data.active) o.selected=true;
     sel.appendChild(o);
   }
@@ -853,7 +862,7 @@ async function buildTtsMenu(){
     const cur=(data.settings&&data.settings.voice)||'ko-KR-SunHiNeural';
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:6px;margin-top:6px;align-items:center';
     const vs=document.createElement('select'); vs.className='micsel'; vs.style.flex='1';
-    for(const [val,lbl] of _EDGE_VOICES){ const o=document.createElement('option'); o.value=val; o.textContent=lbl; if(val===cur)o.selected=true; vs.appendChild(o); }
+    for(const [val,ko,en] of _EDGE_VOICES){ const o=document.createElement('option'); o.value=val; o.textContent=curLang==='en'?en:ko; if(val===cur)o.selected=true; vs.appendChild(o); }
     vs.onchange=()=>setTtsProvider('edge',{voice:vs.value});
     const pv=document.createElement('div'); pv.className='langbtn'; pv.style.cssText='flex:0 0 auto;white-space:nowrap;padding:7px 11px;cursor:pointer';
     pv.textContent=_K('▶ 듣기','▶ Play'); let busy=false;
