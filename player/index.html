@@ -33,7 +33,7 @@
     background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, #000 42%, var(--bg)) 100%); }
   .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
   .hd .nm{ font-weight:600; } .hd .st{ margin-left:auto; font-size:11px; color:var(--dim); }
-  .call video,.call img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .call video,.call img{ width:100%; height:100%; object-fit:cover; object-position:center 30%; display:block; }
   .call .lyr{ position:absolute; inset:0; transition:opacity .26s ease; will-change:opacity; }
   /* 줌 상한(capped-cover): 초세로 창에서 cover-crop이 얼굴만 꽉 채우는 것 방지.
      JS(applyZoomCap)가 영상 폭을 무대폭×CAP까지만 허용 — 세로 여백은 방 톤 그라데이션. */
@@ -315,24 +315,13 @@ function waitForSettle(tok){ return new Promise(res=>{
   const chk=setInterval(()=>{ if(tok!==playToken){ clearTimeout(timer); fin(false); } }, 50);
   setTimeout(()=>clearInterval(chk), ms+80);
 }); }
-// ── 표시 줌 상한: 창이 아무리 세로여도 얼굴-온리 크롭이 되지 않게 ──
-// cover 줌 Z = 영상AR/창AR. Z가 CAP 초과면 영상 폭을 창폭×CAP으로 고정(수평 크롭 상한),
-// 세로는 전체 프레임 노출(상반신 유지). 여백은 .call 그라데이션이 받친다.
-const ZOOM_CAP=2.4, VID_AR=16/9;   // 2.4 = 얼굴+가슴 통화구도 유지 (얼굴-온리 방지)
+// ── 표시 프레이밍: 영상(16:9)이 무대를 항상 꽉 채움(여백 0) ──
+// CSS object-fit:cover 가 무대 높이를 채우고 좌우로 넘치는 부분만 크롭.
+// object-position: 세로 크롭 시 얼굴(상단)을 우선 노출. JS는 이전 인라인 사이징만 정리.
 function applyZoomCap(){
-  const call=document.querySelector('.stage'); if(!call) return;
-  const W=call.clientWidth, H=call.clientHeight; if(!W||!H) return;
-  const winAR=W/H, Z=VID_AR/winAR;
   for(const v of [document.getElementById('vid'),document.getElementById('vid2')]){
     if(!v) continue;
-    if(Z>ZOOM_CAP){
-      const w=W*ZOOM_CAP, h=w/VID_AR;
-      v.style.width=w+'px'; v.style.height=h+'px';
-      v.style.left=((W-w)/2)+'px'; v.style.top=Math.max(0,(H-h)*0.22)+'px';   // 얼굴이 위쪽이라 22% 지점
-      v.style.right='auto'; v.style.bottom='auto';
-    }else{
-      v.style.width=''; v.style.height=''; v.style.left=''; v.style.top=''; v.style.right=''; v.style.bottom='';
-    }
+    v.style.width=''; v.style.height=''; v.style.left=''; v.style.top=''; v.style.right=''; v.style.bottom='';
   }
 }
 window.addEventListener('resize',applyZoomCap);
