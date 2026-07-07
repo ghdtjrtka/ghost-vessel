@@ -13,18 +13,18 @@
     "windows": [
       {
         "label": "main",
-        "title": "Ghost Vessel",
+        "title": "Ghost Vessel — 여름",
         "url": "http://127.0.0.1:8777/player/index.html",
-        "width": 480,
-        "height": 760,
-        "minWidth": 320,
-        "minHeight": 420,
+        "width": 980,
+        "height": 720,
+        "minWidth": 640,
+        "minHeight": 520,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
-        "transparent": true,
+        "decorations": true,
+        "transparent": false,
         "alwaysOnTop": true,
-        "shadow": false,
+        "shadow": true,
         "center": true
       }
     ],

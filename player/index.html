@@ -1075,8 +1075,6 @@ async function boot(){
   if(!(await licenseGate())) return;                     // 통파일 배포: 첫 실행 키 게이트(오픈엔진은 통과)
   try{ if(localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
   applyLang();
-  // Tauri 셸(패키지)에선 분리 모드 기본 — 영상·투명채팅이 바탕화면 위에 뜨는 모니터 상주
-  try{ if((window.__TAURI_INTERNALS__||window.__TAURI__) && !document.body.classList.contains('sep')) toggleMode(); }catch(e){}
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
   idle();
