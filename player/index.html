@@ -315,13 +315,26 @@ function waitForSettle(tok){ return new Promise(res=>{
   const chk=setInterval(()=>{ if(tok!==playToken){ clearTimeout(timer); fin(false); } }, 50);
   setTimeout(()=>clearInterval(chk), ms+80);
 }); }
-// ── 표시 프레이밍: 영상(16:9)이 무대를 항상 꽉 채움(여백 0) ──
-// CSS object-fit:cover 가 무대 높이를 채우고 좌우로 넘치는 부분만 크롭.
-// object-position: 세로 크롭 시 얼굴(상단)을 우선 노출. JS는 이전 인라인 사이징만 정리.
+// ── 표시 프레이밍: 크롭 범위를 9:16 ~ 16:9로 클램프 ──
+// 무대AR이 [9:16, 16:9] 안이면 cover로 꽉 채움(좌우 크롭, 넓힐수록 원본 더 노출).
+// 9:16보다 세로로 좁아지면 → 9:16에서 고정(더 안 잘림), 상하 여백은 방 톤 그라데이션.
+// 16:9보다 가로로 넓어지면 → 원본 풀프레임에서 고정, 좌우 여백은 그라데이션.
+const MIN_AR=9/16, SRC_AR=16/9;
 function applyZoomCap(){
+  const st=document.querySelector('.stage'); if(!st) return;
+  const W=st.clientWidth, H=st.clientHeight; if(!W||!H) return;
+  const ar=W/H;
   for(const v of [document.getElementById('vid'),document.getElementById('vid2')]){
     if(!v) continue;
-    v.style.width=''; v.style.height=''; v.style.left=''; v.style.top=''; v.style.right=''; v.style.bottom='';
+    if(ar>=MIN_AR && ar<=SRC_AR){          // 범위 내: 순수 cover(무대 꽉 참)
+      v.style.width=''; v.style.height=''; v.style.left=''; v.style.top=''; v.style.right=''; v.style.bottom='';
+    }else if(ar<MIN_AR){                    // 너무 세로로 좁음 → 9:16 고정, 상하 레터박스
+      const w=W, h=W/MIN_AR;
+      v.style.width=w+'px'; v.style.height=h+'px'; v.style.left='0'; v.style.top=((H-h)/2)+'px'; v.style.right='auto'; v.style.bottom='auto';
+    }else{                                  // 너무 가로로 넓음 → 원본 풀프레임 고정, 좌우 레터박스
+      const h=H, w=H*SRC_AR;
+      v.style.width=w+'px'; v.style.height=h+'px'; v.style.top='0'; v.style.left=((W-w)/2)+'px'; v.style.right='auto'; v.style.bottom='auto';
+    }
   }
 }
 window.addEventListener('resize',applyZoomCap);
