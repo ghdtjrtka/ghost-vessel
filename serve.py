@@ -13,7 +13,10 @@ import os
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-ROOT = os.path.dirname(os.path.abspath(__file__))          # repo root
+# 패키지(frozen)에선 GV_ROOT(런처가 설정) 우선, 없으면 exe/스크립트 위치.
+ROOT = os.environ.get("GV_ROOT") or (
+    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__)))
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8777
 
 

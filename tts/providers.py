@@ -7,9 +7,13 @@ serialize=True 라 서버의 FIFO 큐를 타고, 클라우드(elevenlabs/openai_
 무거운 임포트(torch/qwen)는 전부 load() 안에서 지연 로드 → 클라우드 프로바이더만 쓸 땐
 GPU/모델을 건드리지 않는다. API 키는 환경변수로만 받는다(설정 파일에 넣지 않음).
 """
-import io, os, json, shutil
+import io, os, sys, json, shutil
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_config.json")
+# 패키지(frozen)에선 GV_ROOT(런처 설정)/tts_config.json 우선.
+_CFG_DIR = os.environ.get("GV_ROOT") or (
+    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.path.join(_CFG_DIR, "tts_config.json")
 
 DEFAULT_CONFIG = {
     "provider": "qwen",

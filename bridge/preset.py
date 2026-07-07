@@ -8,7 +8,11 @@ avatar/segments) which resolve to /presets/<id>/... . Presets are pure data.
 """
 import json, os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # repo root
+import sys
+# 패키지(frozen)에선 GV_ROOT(런처가 설정) 우선 — presets/segments를 패키지에서 찾게.
+ROOT = os.environ.get("GV_ROOT") or (
+    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRESETS_DIR = os.path.join(ROOT, "presets")
 
 # ── 단일 팩(.gvp) 지원: presets/<id>.gvp 파일 하나에 아바타 전체가 들어감 ──
