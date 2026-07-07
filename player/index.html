@@ -172,6 +172,41 @@
 <script src="vad/bundle.min.js"></script>
 <script>
 const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://127.0.0.1:8898';
+// 라이선스 게이트: 오픈엔진(레포)은 required=false(무료). 패키징된 통파일 배포에서만 packager가
+// required=true로 켠다(그때 첫 실행에 키 입력창). base = license-server(예: agepo.co.kr/license).
+// 패키저가 통파일 HTML의 <head>에 `<script>var GV_LICENSE_REQUIRED=true</script>`만 넣으면 켜짐(큰 JS 무수정).
+const LICENSE={ required:(typeof GV_LICENSE_REQUIRED!=='undefined'&&GV_LICENSE_REQUIRED),
+  base:(typeof GV_LICENSE_BASE!=='undefined'?GV_LICENSE_BASE:'https://agepo.co.kr/license'),
+  store:(typeof GV_LICENSE_STORE!=='undefined'?GV_LICENSE_STORE:'https://namanavi.com/gv/') };
+async function validateKey(key){
+  try{ const r=await fetch(LICENSE.base+'/gv/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:(key||'').trim()})});
+    return !!(await r.json()).valid; }catch(e){ return false; } }
+async function licenseGate(){
+  if(!LICENSE.required) return true;
+  let key=''; try{ key=localStorage.getItem('gvLicenseKey')||''; }catch(e){}
+  if(key && await validateKey(key)) return true;
+  return await showKeyGate();
+}
+function showKeyGate(){ return new Promise(resolve=>{
+  const ov=document.createElement('div'); ov.id='keygate';
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#0b0b0fef;backdrop-filter:blur(6px)';
+  ov.innerHTML=`<div style="width:min(420px,90vw);text-align:center;padding:34px 30px;border:1px solid var(--line);border-radius:20px;background:var(--panel)">
+    <div style="font-size:26px;font-weight:700;letter-spacing:.02em">Ghost Vessel</div>
+    <div class="lbl" style="opacity:.8;margin:8px 0 20px">${_K('라이선스 키를 입력하세요','Enter your license key')}</div>
+    <input id="kgIn" placeholder="GV-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX" autocomplete="off"
+      style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--txt);font-family:ui-monospace,Consolas,monospace;font-size:13px;text-align:center;text-transform:uppercase">
+    <div id="kgMsg" class="lbl" style="min-height:16px;margin:8px 0;color:var(--warn,#e0a030)"></div>
+    <div id="kgBtn" class="run" style="cursor:pointer;background:var(--accent);color:#fff;border-radius:12px;padding:11px;font-size:14px">${_K('활성화','Activate')}</div>
+    <a href="${LICENSE.store}" target="_blank" rel="noopener" style="display:inline-block;margin-top:14px;font-size:12px;color:var(--accent);text-decoration:none">${_K('키가 없나요? → 후원하고 받기','No key? → Support & get one')}</a>
+  </div>`;
+  document.body.appendChild(ov);
+  const inp=ov.querySelector('#kgIn'), btn=ov.querySelector('#kgBtn'), msg=ov.querySelector('#kgMsg');
+  inp.focus();
+  const submit=async()=>{ const k=inp.value.trim(); if(!k)return; btn.style.pointerEvents='none'; btn.textContent=_K('확인 중…','checking…');
+    if(await validateKey(k)){ try{ localStorage.setItem('gvLicenseKey',k); }catch(e){} ov.remove(); resolve(true); }
+    else{ msg.textContent=_K('유효하지 않은 키입니다','Invalid key'); btn.style.pointerEvents=''; btn.textContent=_K('활성화','Activate'); } };
+  btn.onclick=submit; inp.addEventListener('keydown',e=>{ if(e.key==='Enter')submit(); });
+}); }
 let SKILLS=[{cmd:'/help',desc:''}];   // 폴백. 실제 목록은 boot에서 BRIDGE /commands로(에이전트별, 설명 포함)
 async function loadCommands(){
   try{ const d=await (await fetch(BRIDGE+'/commands',{cache:'no-store'})).json();
@@ -1034,6 +1069,7 @@ async function boot(){
     if(!e.target.closest('.thememenu')&&!e.target.closest('#themeBtn')) $('thememenu').classList.remove('show'); });
   try{ curLang=localStorage.getItem('avatarLang')||'ko'; }catch(e){}
   try{ applyTheme(localStorage.getItem('avatarTheme') || (PRESET&&PRESET.theme) || 'graphite'); }catch(e){ applyTheme('graphite'); }
+  if(!(await licenseGate())) return;                     // 통파일 배포: 첫 실행 키 게이트(오픈엔진은 통과)
   try{ if(localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
   applyLang();
   loadName();
