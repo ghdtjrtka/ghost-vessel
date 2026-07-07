@@ -1,0 +1,3 @@
+# VC++ 런타임 정적 링크 → 배포 exe가 vcruntime140.dll 의존 안 함(비개발자 무의존).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

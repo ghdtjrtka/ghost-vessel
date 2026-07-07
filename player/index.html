@@ -15,7 +15,8 @@
   .divider:hover,.divider.drag{ background:#2b2b39; }
   .hd .mode{ cursor:pointer; font-size:14px; opacity:.85; margin-left:6px; }
   /* 분리 모드: 영상창이 떠서 이동/리사이즈/스냅 */
-  body.sep{ position:relative; }
+  /* 분리 모드: 배경 투명 → Tauri 투명창에서 영상·채팅만 바탕화면 위에 떠 보임(모니터 상주) */
+  body.sep{ position:relative; background:transparent !important; }
   body.sep .divider{ display:none; }
   body.sep .call{ position:fixed; z-index:60; top:24px; right:24px; left:auto; width:300px; height:auto; aspect-ratio:9/16; resize:both; overflow:hidden; box-shadow:0 24px 70px #000d; transition:top .12s,left .12s,right .12s; }
   body.sep .call .hd{ cursor:move; }
@@ -176,7 +177,7 @@ const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://1
 const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // 라이선스 게이트: 오픈엔진(레포)은 required=false(무료). 패키징된 통파일 배포에서만 packager가
 // required=true로 켠다(그때 첫 실행에 키 입력창). base = license-server(예: agepo.co.kr/license).
-// 패키저가 통파일 HTML의 <head>에 `<script>var GV_LICENSE_REQUIRED=true</script>`만 넣으면 켜짐(큰 JS 무수정).
+// 패키저가 통파일 HTML head에 전역 var GV_LICENSE_REQUIRED=true 만 넣으면 켜짐(큰 JS 무수정).
 const LICENSE={ required:(typeof GV_LICENSE_REQUIRED!=='undefined'&&GV_LICENSE_REQUIRED),
   base:(typeof GV_LICENSE_BASE!=='undefined'?GV_LICENSE_BASE:'https://ghostvessel.space/license'),
   store:(typeof GV_LICENSE_STORE!=='undefined'?GV_LICENSE_STORE:'https://ghostvessel.space/') };
@@ -1074,6 +1075,8 @@ async function boot(){
   if(!(await licenseGate())) return;                     // 통파일 배포: 첫 실행 키 게이트(오픈엔진은 통과)
   try{ if(localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
   applyLang();
+  // Tauri 셸(패키지)에선 분리 모드 기본 — 영상·투명채팅이 바탕화면 위에 뜨는 모니터 상주
+  try{ if((window.__TAURI_INTERNALS__||window.__TAURI__) && !document.body.classList.contains('sep')) toggleMode(); }catch(e){}
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
   idle();
