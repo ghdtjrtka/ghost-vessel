@@ -26,10 +26,12 @@ pub fn run() {
 
             // ── tray menu: the only chrome on these frameless windows ──
             let toggle = MenuItem::with_id(app, "toggle", "Avatar click-through: off", true, None::<&str>)?;
+            let vis = MenuItem::with_id(app, "vis", "Hide avatar window", true, None::<&str>)?;
             let front = MenuItem::with_id(app, "front", "Bring both to front", true, None::<&str>)?;
             let reload = MenuItem::with_id(app, "reload", "Reload", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &front, &reload, &quit])?;
+            let menu = Menu::with_items(app, &[&toggle, &vis, &front, &reload, &quit])?;
+            let vis_label = vis.clone();
 
             let toggle_label = toggle.clone();
 
@@ -51,10 +53,25 @@ pub fn run() {
                             });
                         }
                     }
+                    // show/hide the avatar (video) window
+                    "vis" => {
+                        if let Some(w) = app.get_webview_window("video") {
+                            let hidden = !w.is_visible().unwrap_or(true);
+                            if hidden {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                                let _ = vis_label.set_text("Hide avatar window");
+                            } else {
+                                let _ = w.hide();
+                                let _ = vis_label.set_text("Show avatar window");
+                            }
+                        }
+                    }
                     "front" => {
                         // undo click-through and raise both, so the user can grab them again
                         CLICK_THROUGH.store(false, Ordering::Relaxed);
                         let _ = toggle_label.set_text("Avatar click-through: off");
+                        let _ = vis_label.set_text("Hide avatar window");
                         for label in WINDOWS {
                             if let Some(w) = app.get_webview_window(label) {
                                 let _ = w.set_ignore_cursor_events(false);
