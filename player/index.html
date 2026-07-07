@@ -10,7 +10,7 @@
   body{ margin:0; font-family:system-ui,'Segoe UI',sans-serif; background:var(--bg); color:var(--txt); display:flex; gap:16px; padding:16px; height:100vh; overflow:hidden; }
 
   /* ── 영상 창 ── */
-  .call{ flex:0 0 auto; width:var(--callw,420px); height:100%; border-radius:20px; overflow:hidden; background:#000; position:relative; border:1px solid var(--line); box-shadow:0 14px 44px rgba(0,0,0,.5); min-width:200px; }
+  .call{ flex:0 0 auto; width:var(--callw,420px); height:100%; border-radius:20px; overflow:hidden; background:var(--panel); position:relative; display:flex; flex-direction:column; border:1px solid var(--line); box-shadow:0 14px 44px rgba(0,0,0,.5); min-width:200px; }
   .divider{ flex:0 0 8px; align-self:stretch; cursor:col-resize; border-radius:8px; }
   .divider:hover,.divider.drag{ background:#2b2b39; }
   .hd .mode{ cursor:pointer; font-size:14px; opacity:.85; margin-left:6px; }
@@ -27,14 +27,16 @@
   body.sep .chat:hover{ opacity:1; }
   /* 대화 숨김 토글 (영통 화면에서 자막만 남기고 채팅 오버레이 끔) */
   body.nochat .chat{ display:none; }
-  .call .hd{ position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center; gap:8px; padding:12px 14px; background:linear-gradient(#000b,#0000); font-size:13px; }
+  .call .hd{ flex:0 0 auto; z-index:3; display:flex; align-items:center; gap:8px; padding:11px 14px; background:var(--panel); border-bottom:1px solid var(--line); font-size:13px; }
+  /* 영상 무대: 헤더 아래 남는 영역만 채움(헤더 침범 방지). 방 톤 그라데이션이 여백을 받침. */
+  .stage{ position:relative; flex:1 1 auto; min-height:0; overflow:hidden;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, #000 42%, var(--bg)) 100%); }
   .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
   .hd .nm{ font-weight:600; } .hd .st{ margin-left:auto; font-size:11px; color:var(--dim); }
   .call video,.call img{ width:100%; height:100%; object-fit:cover; display:block; }
   .call .lyr{ position:absolute; inset:0; transition:opacity .26s ease; will-change:opacity; }
   /* 줌 상한(capped-cover): 초세로 창에서 cover-crop이 얼굴만 꽉 채우는 것 방지.
-     JS(applyZoomCap)가 영상 폭을 창폭×CAP까지만 허용 — 세로 여백은 방 톤 그라데이션. */
-  .call{ background:#170d20; background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, #000 42%, var(--bg)) 100%); }
+     JS(applyZoomCap)가 영상 폭을 무대폭×CAP까지만 허용 — 세로 여백은 방 톤 그라데이션. */
   .badge{ position:absolute; top:46px; right:12px; z-index:3; background:#000c; border:1px solid var(--line); border-radius:9px; padding:5px 9px; font-size:11px; color:var(--dim); display:none; }
   .badge b{ color:var(--txt); }
   .cap{ position:absolute; left:0; right:0; bottom:0; z-index:3; padding:22px 16px 16px; background:linear-gradient(#0000,#000d); font-size:15px; line-height:1.45; min-height:20px; }
@@ -120,12 +122,14 @@
   <!-- 영상 창 -->
   <div class="call">
     <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
-    <video id="vid" class="lyr" muted playsinline></video>
-    <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
-    <div class="badge" id="badge"></div>
-    <div class="cap" id="cap"></div>
-    <div class="confirm" id="confirm"><div id="confirmText" style="margin-bottom:6px"></div>
-      <button onclick="resolveConfirm(true)" data-i18n="confirm_yes">응, 진행해</button><button class="no" onclick="resolveConfirm(false)" data-i18n="confirm_no">아니, 취소</button></div>
+    <div class="stage">
+      <video id="vid" class="lyr" muted playsinline></video>
+      <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
+      <div class="badge" id="badge"></div>
+      <div class="cap" id="cap"></div>
+      <div class="confirm" id="confirm"><div id="confirmText" style="margin-bottom:6px"></div>
+        <button onclick="resolveConfirm(true)" data-i18n="confirm_yes">응, 진행해</button><button class="no" onclick="resolveConfirm(false)" data-i18n="confirm_no">아니, 취소</button></div>
+    </div>
   </div>
 
   <div class="divider" id="divider" data-i18n-title="resize" title="드래그해서 크기조절"></div>
@@ -316,7 +320,7 @@ function waitForSettle(tok){ return new Promise(res=>{
 // 세로는 전체 프레임 노출(상반신 유지). 여백은 .call 그라데이션이 받친다.
 const ZOOM_CAP=2.4, VID_AR=16/9;   // 2.4 = 얼굴+가슴 통화구도 유지 (얼굴-온리 방지)
 function applyZoomCap(){
-  const call=document.querySelector('.call'); if(!call) return;
+  const call=document.querySelector('.stage'); if(!call) return;
   const W=call.clientWidth, H=call.clientHeight; if(!W||!H) return;
   const winAR=W/H, Z=VID_AR/winAR;
   for(const v of [document.getElementById('vid'),document.getElementById('vid2')]){
@@ -332,7 +336,7 @@ function applyZoomCap(){
   }
 }
 window.addEventListener('resize',applyZoomCap);
-(function(){ const c=document.querySelector('.call'); if(c) new ResizeObserver(applyZoomCap).observe(c); })();
+(function(){ const c=document.querySelector('.stage'); if(c) new ResizeObserver(applyZoomCap).observe(c); })();
 
 // ── 무드 상태 (브리지 mood 트래커가 SSE로 push) ──
 let MOOD={base:'neutral',mood:0,affinity:0,rate:1.0};
