@@ -2,7 +2,9 @@
 
 > **Bind your local LLM agent (the *ghost*) into an avatar body (the *vessel*).**
 > A monitor-resident, video-call-style avatar that **fronts your personal AI agent**
-> (Hermes / OpenClaw, or anything) — replacing the chat tab you keep open to talk to it.
+> (Hermes / OpenClaw, or anything) — a full **replacement for the Telegram/messenger chat**
+> you keep open to talk to it, **serving that agent's exact slash-command menu** right in the
+> avatar's window. Not a waifu toy: a real agent client that happens to have a face.
 
 Your agent replies; the avatar **performs** it: fine-grained facial emotion beats, a
 persistent **mood** that sinks when you scold it and brightens when you praise it, idle
@@ -29,6 +31,10 @@ video window ◄── performance player ◄── parser (3 planes) ◄─┘
 - **Agent-agnostic**: Hermes (relay connector contract, WS server) and OpenClaw
   (gateway WS client) adapters, plus a demo responder with zero setup. The agent is
   told only the emotions your avatar actually has, so partial avatars just work.
+- **The messenger's menu, in the avatar**: type `/` and the chat pulls your agent's
+  **live command menu** — the same one you'd see in Telegram (e.g. 52 commands for Hermes:
+  `/model`, `/new`, `/goal`, `/status`, `/compress`, …), served per-agent (Hermes or
+  OpenClaw). A real control surface, not a canned list; commands pass straight to the agent.
 - **Swappable voice**: local (Qwen3-TTS with voice cloning, MeloTTS, Piper) or cloud
   (Edge — free & keyless, ElevenLabs, any OpenAI-compatible) — picked in settings, with
   an in-app installer that surfaces each engine's deps. Voice input via VAD + local STT.

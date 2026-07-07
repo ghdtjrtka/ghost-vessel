@@ -69,7 +69,8 @@
   .inbar input.msg{ flex:1; background:var(--field); color:var(--txt); border:1px solid var(--line); border-radius:22px; padding:11px 16px; font-size:14px; outline:none; }
   .inbar input.msg:focus{ border-color:var(--accent); }
   .send{ all:unset; cursor:pointer; width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:16px; }
-  .skillmenu{ position:absolute; bottom:64px; left:14px; z-index:6; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:6px; display:none; min-width:200px; box-shadow:0 10px 30px #000a; }
+  .skillmenu{ position:absolute; bottom:64px; left:14px; z-index:6; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:6px; display:none; min-width:220px; max-width:min(440px,82vw); max-height:min(52vh,360px); overflow-y:auto; box-shadow:0 10px 30px #000a; }
+  .skillmenu .cdesc{ opacity:.5; font-family:system-ui,'Segoe UI',sans-serif; font-size:11px; }
   .skillmenu div{ padding:8px 12px; border-radius:8px; font-size:13px; cursor:pointer; font-family:ui-monospace,Consolas,monospace; }
   .skillmenu div:hover{ background:var(--hover); }
   .chatwrap{ position:relative; flex:1; display:flex; flex-direction:column; min-height:0; }
@@ -171,7 +172,12 @@
 <script src="vad/bundle.min.js"></script>
 <script>
 const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://127.0.0.1:8898';
-const SKILLS=['/help','/skills','/memory','/schedule','/web','/skill new'];
+let SKILLS=[{cmd:'/help',desc:''}];   // 폴백. 실제 목록은 boot에서 BRIDGE /commands로(에이전트별, 설명 포함)
+async function loadCommands(){
+  try{ const d=await (await fetch(BRIDGE+'/commands',{cache:'no-store'})).json();
+    if(Array.isArray(d.commands)&&d.commands.length)
+      SKILLS=d.commands.map(c=>typeof c==='string'?{cmd:c,desc:''}:c); }catch(e){}
+}
 
 // ── 다국어 (한/영) ──
 const I18N={
@@ -1000,11 +1006,12 @@ async function runPerf(){ const t=$('perfIn').value.trim(); if(!t)return; closeP
   catch(e){ appendAgent(t('bridge_off_parse')); } }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePerf(); });
 function renderSkills(filter){ const m=$('skillmenu'); const f=(filter||'').toLowerCase();
-  const list=SKILLS.filter(s=>s.toLowerCase().startsWith(f));
+  const list=SKILLS.filter(s=>s.cmd.toLowerCase().startsWith(f));
   if(!list.length){ m.style.display='none'; return; }
-  m.innerHTML=''; list.forEach(s=>{ const d=document.createElement('div'); d.textContent=s;
-    d.onclick=()=>{ $('chatInput').value=s+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
-  m.style.display='block'; }
+  m.innerHTML=''; list.forEach(s=>{ const d=document.createElement('div');
+    d.innerHTML=`<b>${s.cmd}</b>`+(s.desc?` <span class="cdesc">${s.desc}</span>`:'');
+    d.onclick=()=>{ $('chatInput').value=s.cmd+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
+  m.style.display='block'; m.scrollTop=0; }
 function toggleSkills(){ const m=$('skillmenu'); if(m.style.display==='block'){ m.style.display='none'; return; } renderSkills(''); }
 $('fileInput')?.addEventListener('change',e=>{ for(const f of e.target.files){ const n=document.createElement('div'); n.className='file'; n.innerHTML=`<span class="ic">📎</span><span class="fn">${f.name}</span><span style="margin-left:auto;color:var(--dim);font-size:11px">${(f.size/1024).toFixed(0)}KB</span>`; addRow('u',n); sendToBridge('[파일 첨부] '+f.name); } e.target.value=''; });
 
@@ -1032,6 +1039,7 @@ async function boot(){
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
   idle();
+  loadCommands();                                        // 설치된 에이전트의 슬래시 명령 로드
   refreshTtsRuntime();                                   // 필러 ETA/준비상태 초기 로드
   try{ const es=new EventSource(BRIDGE+'/events');
     es.onopen=()=>{ esConnected=true; pollStatus(); };

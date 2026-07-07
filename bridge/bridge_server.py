@@ -166,6 +166,63 @@ def _openclaw_mjs():
     return os.path.join(os.environ.get("APPDATA", ""), "npm", "node_modules",
                         "openclaw", "openclaw.mjs")
 
+# 슬래시 명령 = 설치한 에이전트가 실제로 서빙하는 명령(텔레그램 메뉴와 동일). 채팅 자동완성용.
+# Hermes는 hermes_cli.commands.telegram_menu_commands()에서 동적 생성(빌트인+스킬) → 그걸 그대로 뽑는다.
+_FALLBACK_COMMANDS = {
+    "hermes":   [{"cmd": c, "desc": ""} for c in ("/help", "/new", "/model", "/status", "/restart", "/stop")],
+    # OpenClaw 채널 슬래시 명령(docs/channels 기준). connector_config "commands"로 override 가능.
+    "openclaw": [
+        {"cmd": "/help",    "desc": "Show available commands"},
+        {"cmd": "/status",  "desc": "Show bot/session status"},
+        {"cmd": "/new",     "desc": "Start a new session"},
+        {"cmd": "/reset",   "desc": "Reset the current session"},
+        {"cmd": "/model",   "desc": "Show or switch the AI model"},
+        {"cmd": "/compact", "desc": "Compact the session context"},
+        {"cmd": "/stop",    "desc": "Stop running processes"},
+        {"cmd": "/config",  "desc": "Show or change config"},
+        {"cmd": "/goal",    "desc": "Set a standing goal"},
+        {"cmd": "/agents",  "desc": "Show active agents"},
+    ],
+}
+_cmd_cache = {}
+
+def _hermes_commands():
+    if "hermes" in _cmd_cache:
+        return _cmd_cache["hermes"]
+    try:
+        home = os.path.join(os.environ.get("LOCALAPPDATA", ""), "hermes", "hermes-agent")
+        py = os.path.join(home, "venv", "Scripts", "python.exe")
+        snippet = ("import json;from hermes_cli.commands import telegram_menu_commands,telegram_menu_max_commands;"
+                   "c,h=telegram_menu_commands(max_commands=telegram_menu_max_commands());"
+                   "print(json.dumps([{'cmd':'/'+str(n).lstrip('/'),'desc':d} for n,d in c]))")
+        out = subprocess.check_output([py, "-c", snippet], cwd=home, timeout=30,
+                                      stderr=subprocess.DEVNULL, creationflags=0x08000000)
+        cmds = json.loads(out.decode("utf-8").strip().splitlines()[-1])
+        if cmds:
+            _cmd_cache["hermes"] = cmds
+        return cmds
+    except Exception as e:
+        print("[bridge] hermes 명령 조회 실패, 폴백:", str(e)[:120], flush=True)
+        return None
+
+@app.route("/commands")
+def commands():
+    a = _cfg_agent()
+    # connector_config.json "commands"(에이전트별 dict 또는 배열)로 override 가능
+    try:
+        cfg = json.load(open(os.path.join(os.path.dirname(__file__), "connector_config.json"), encoding="utf-8"))
+        cc = cfg.get("commands")
+        ov = cc.get(a) if isinstance(cc, dict) else (cc if isinstance(cc, list) else None)
+        if ov:
+            return jsonify(agent=a, commands=[{"cmd": x, "desc": ""} if isinstance(x, str) else x for x in ov])
+    except Exception:
+        pass
+    if a == "hermes":
+        c = _hermes_commands()
+        if c:
+            return jsonify(agent=a, commands=c)
+    return jsonify(agent=a, commands=_FALLBACK_COMMANDS.get(a, _FALLBACK_COMMANDS["hermes"]))
+
 @app.route("/status_all")
 def status_all():
     tts = _probe("http://127.0.0.1:8899/health")
