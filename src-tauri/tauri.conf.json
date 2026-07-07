@@ -10,22 +10,41 @@
     "beforeBuildCommand": ""
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "label": "main",
+        "label": "video",
         "title": "Ghost Vessel — 여름",
-        "url": "http://127.0.0.1:8777/player/index.html",
-        "width": 980,
-        "height": 720,
-        "minWidth": 640,
-        "minHeight": 520,
+        "url": "http://127.0.0.1:8777/player/index.html?pane=video",
+        "width": 360,
+        "height": 640,
+        "minWidth": 220,
+        "minHeight": 340,
+        "x": 60,
+        "y": 60,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true,
-        "transparent": false,
+        "decorations": false,
+        "transparent": true,
         "alwaysOnTop": true,
-        "shadow": true,
-        "center": true
+        "shadow": false
+      },
+      {
+        "label": "chat",
+        "title": "Ghost Vessel — Chat",
+        "url": "http://127.0.0.1:8777/player/index.html?pane=chat",
+        "width": 400,
+        "height": 560,
+        "minWidth": 300,
+        "minHeight": 320,
+        "x": 440,
+        "y": 60,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "shadow": false
       }
     ],
     "security": {

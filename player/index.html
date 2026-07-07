@@ -27,6 +27,29 @@
   body.sep .chat:hover{ opacity:1; }
   /* 대화 숨김 토글 (영통 화면에서 자막만 남기고 채팅 오버레이 끔) */
   body.nochat .chat{ display:none; }
+
+  /* ── 분리 창 모드(?pane=video|chat): 각 패널이 별도 Tauri 창을 꽉 채움 ──
+     프레임리스·투명 창 위에 둥근 패널 하나만 떠 보임(모니터 상주, 자유 배치). */
+  body.pane{ padding:0; gap:0; background:transparent !important; overflow:hidden; }
+  body.pane .divider{ display:none; }
+  body.pane-video .chat{ display:none; }
+  body.pane-video .call{ flex:1 1 auto; width:100vw; height:100vh; border-radius:16px; }
+  body.pane-chat .call{ display:none; }
+  body.pane-chat .chat{ flex:1 1 auto; width:100vw; height:100vh; border-radius:16px; }
+  /* 드래그 영역: 창을 아무데나 잡고 이동(Tauri). 버튼/입력은 no-drag로 클릭 보존. */
+  body.pane [data-tauri-drag-region]{ cursor:grab; }
+  body.pane [data-tauri-drag-region]:active{ cursor:grabbing; }
+  body.pane .hd .mode, body.pane .hd .vt, body.pane .inbar, body.pane .cap, body.pane .badge{ -webkit-app-region:no-drag; }
+  /* 프레임리스 창 리사이즈 그립(Tauri startResizeDragging). 투명·얇게, pane+Tauri일 때만 생성. */
+  .rgrip{ position:fixed; z-index:200; }
+  .rgrip.n{ top:0; left:10px; right:10px; height:6px; cursor:ns-resize; }
+  .rgrip.s{ bottom:0; left:10px; right:10px; height:6px; cursor:ns-resize; }
+  .rgrip.e{ top:10px; bottom:10px; right:0; width:6px; cursor:ew-resize; }
+  .rgrip.w{ top:10px; bottom:10px; left:0; width:6px; cursor:ew-resize; }
+  .rgrip.ne{ top:0; right:0; width:13px; height:13px; cursor:nesw-resize; }
+  .rgrip.nw{ top:0; left:0; width:13px; height:13px; cursor:nwse-resize; }
+  .rgrip.se{ bottom:0; right:0; width:13px; height:13px; cursor:nwse-resize; }
+  .rgrip.sw{ bottom:0; left:0; width:13px; height:13px; cursor:nesw-resize; }
   .call .hd{ flex:0 0 auto; z-index:3; display:flex; align-items:center; gap:8px; padding:11px 14px; background:var(--panel); border-bottom:1px solid var(--line); font-size:13px; }
   /* 영상 무대: 헤더 아래 남는 영역만 채움(헤더 침범 방지). 방 톤 그라데이션이 여백을 받침. */
   .stage{ position:relative; flex:1 1 auto; min-height:0; overflow:hidden;
@@ -100,7 +123,8 @@
   .perf .hintrow span{ cursor:pointer; font-size:11px; color:var(--accent); border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-family:ui-monospace,monospace; }
 
   /* ── 테마 선택기 ── */
-  .thememenu{ position:fixed; z-index:130; display:none; width:280px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 20px 60px #0009; }
+  .thememenu{ position:fixed; z-index:130; display:none; width:280px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 20px 60px #0009; overflow-y:auto; overscroll-behavior:contain; }
+  .thememenu::-webkit-scrollbar{ width:9px; } .thememenu::-webkit-scrollbar-thumb{ background:#33333f; border-radius:9px; }
   .thememenu.show{ display:block; }
   .thememenu .lbl{ font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); margin:8px 2px 6px; }
   .thememenu .lbl:first-child{ margin-top:0; }
@@ -121,8 +145,8 @@
 <body>
   <!-- 영상 창 -->
   <div class="call">
-    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
-    <div class="stage">
+    <div class="hd" data-tauri-drag-region><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
+    <div class="stage" data-tauri-drag-region>
       <video id="vid" class="lyr" muted playsinline></video>
       <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
       <div class="badge" id="badge"></div>
@@ -136,7 +160,7 @@
 
   <!-- 대화 창 -->
   <div class="chat">
-    <div class="hd"><img class="av" id="hdav" src="../ref/source_final.png"><div><div class="ti" id="nameC">…</div><div class="su" id="liveLabel">연결 중…</div></div><span class="vt" id="themeBtn" data-i18n-title="theme" title="테마" onclick="toggleTheme(event)" style="margin-left:auto">🎨</span><span class="vt" id="vt" data-i18n-title="voice" title="음성 켜기/끄기" onclick="toggleVoice()" style="margin-left:0">🔊</span></div>
+    <div class="hd" data-tauri-drag-region><img class="av" id="hdav" src="../ref/source_final.png"><div><div class="ti" id="nameC">…</div><div class="su" id="liveLabel">연결 중…</div></div><span class="vt" id="themeBtn" data-i18n-title="theme" title="테마" onclick="toggleTheme(event)" style="margin-left:auto">🎨</span><span class="vt" id="vt" data-i18n-title="voice" title="음성 켜기/끄기" onclick="toggleVoice()" style="margin-left:0">🔊</span></div>
     <div class="chatwrap">
       <div class="log" id="log"><div class="empty" data-i18n-html="empty">대화를 시작하세요.<br>파일 첨부 📎 · 스킬 <b>/</b> · Enter 전송</div></div>
       <div class="skillmenu" id="skillmenu"></div>
@@ -177,6 +201,22 @@
 <script src="vad/bundle.min.js"></script>
 <script>
 const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://127.0.0.1:8898';
+// ── 분리 창 역할: ?pane=video (아바타·TTS·자막) / ?pane=chat (로그·입력·마이크) / 없음=합본 ──
+// 두 창은 같은 브리지 SSE를 구독하지만, TTS·영상재생은 video 창만 수행(이중 오디오 방지).
+const PANE=new URLSearchParams(location.search).get('pane');
+const DO_VIDEO=(PANE!=='chat');   // 영상+TTS+자막 재생 주체
+const DO_CHAT =(PANE!=='video');  // 채팅 로그·데이터카드·입력 주체
+// 분리 창(Tauri): 프레임리스 창 8방향 리사이즈 그립을 붙임(데코 없는 창은 OS 리사이즈 불가).
+function initPaneWindow(){
+  if(!PANE) return;
+  const T=window.__TAURI__; if(!T||!T.window) return;
+  const win=T.window.getCurrentWindow ? T.window.getCurrentWindow() : (T.window.getCurrent&&T.window.getCurrent());
+  if(!win||!win.startResizeDragging) return;
+  const DIRS={n:'North',s:'South',e:'East',w:'West',ne:'NorthEast',nw:'NorthWest',se:'SouthEast',sw:'SouthWest'};
+  for(const d in DIRS){ const g=document.createElement('div'); g.className='rgrip '+d;
+    g.addEventListener('mousedown',ev=>{ if(ev.button!==0)return; ev.preventDefault(); try{ win.startResizeDragging(DIRS[d]); }catch(e){} });
+    document.body.appendChild(g); }
+}
 // HTML 이스케이프 — LLM/프리셋/에이전트 등 신뢰불가 데이터를 innerHTML에 넣을 때 필수(XSS 방지).
 const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // 라이선스 게이트: 오픈엔진(레포)은 required=false(무료). 패키징된 통파일 배포에서만 packager가
@@ -523,6 +563,12 @@ let confirmCb=null, playToken=0;
 async function play(p){
   const tok=++playToken;
   if(p.mood) setMood(p.mood);
+  if(!DO_VIDEO){   // 분리 채팅 창: 로그·데이터만(영상/TTS/확인은 영상 창이 담당) → 이중 오디오 없음
+    renderData(p.data);
+    const cbeats=(p.dialogue?.beats&&p.dialogue.beats.length)?p.dialogue.beats:[{text:p.dialogue?.text||''}];
+    for(const b of cbeats){ if(b.text) appendAgent(b.text); }
+    return;
+  }
   // 사용자 말에 대한 즉시 반응(칭찬/질책): settle 대기 없이 바로 움찔/반색 → idle 복귀
   if(p.context&&p.context.trigger_type==='user_reaction'){
     const b=(p.dialogue&&p.dialogue.beats&&p.dialogue.beats[0])||{emotion:'neutral'};
@@ -663,7 +709,7 @@ function buildThemeMenu(){ const m=$('thememenu'); if(m.childElementCount)return
   mk(THEMES.filter(th=>th.mode==='dark'),t('dark')); mk(THEMES.filter(th=>th.mode==='light'),t('light'));
   m.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on', s.dataset.id===curTheme)); }
 function toggleTheme(e){ e&&e.stopPropagation(); buildThemeMenu(); renderSys(); buildMicMenu(); buildTtsMenu(); const m=$('thememenu'); if(m.classList.contains('show')){ m.classList.remove('show'); return; }
-  const b=$('themeBtn').getBoundingClientRect(); m.style.top=(b.bottom+8)+'px'; m.style.left=Math.max(12,Math.min(b.right-280, innerWidth-292))+'px'; m.classList.add('show'); pollStatus(); }
+  const b=$('themeBtn').getBoundingClientRect(); const top=b.bottom+8; m.style.top=top+'px'; m.style.left=Math.max(12,Math.min(b.right-280, innerWidth-292))+'px'; m.style.maxHeight=(innerHeight-top-12)+'px'; m.classList.add('show'); pollStatus(); }
 
 // ── 음성 입력: 마이크 → Silero VAD(로컬) → STT(faster-whisper) → 채팅 경로 ──
 let _vad=null, micOn=false, _vadPaused=false, _micStream=null;
@@ -1077,9 +1123,10 @@ async function boot(){
   document.addEventListener('click',e=>{ if(!e.target.closest('.skillmenu')&&!e.target.closest('[onclick*=toggleSkills]')) $('skillmenu').style.display='none';
     if(!e.target.closest('.thememenu')&&!e.target.closest('#themeBtn')) $('thememenu').classList.remove('show'); });
   try{ curLang=localStorage.getItem('avatarLang')||'ko'; }catch(e){}
+  if(PANE){ document.body.classList.add('pane','pane-'+PANE); initPaneWindow(); }   // 분리 창: 해당 패널만 채움 + 리사이즈 그립
   try{ applyTheme(localStorage.getItem('avatarTheme') || (PRESET&&PRESET.theme) || 'graphite'); }catch(e){ applyTheme('graphite'); }
-  if(!(await licenseGate())) return;                     // 통파일 배포: 첫 실행 키 게이트(오픈엔진은 통과)
-  try{ if(localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
+  if(DO_CHAT){ if(!(await licenseGate())) return; }      // 첫 실행 키 게이트: chat/합본 창만(오픈엔진 통과). 상호작용이 chat에서 게이트되므로 video 창은 통과.
+  try{ if(!PANE && localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
   applyLang();
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
