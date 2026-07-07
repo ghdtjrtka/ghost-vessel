@@ -1,13 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "permissions for the video + chat floating windows (served from the local static server)",
-  "remote": {
-    "urls": [
-      "http://127.0.0.1:8777/*",
-      "http://localhost:8777/*"
-    ]
-  },
+  "description": "permissions for the video + chat floating windows (bundled, tauri://localhost)",
   "windows": [
     "video",
     "chat"

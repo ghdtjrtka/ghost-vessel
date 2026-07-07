@@ -148,8 +148,8 @@
 <body>
   <!-- 영상 창 -->
   <div class="call">
-    <div class="hd" data-tauri-drag-region><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
-    <div class="stage" data-tauri-drag-region>
+    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
+    <div class="stage">
       <video id="vid" class="lyr" muted playsinline></video>
       <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
       <div class="badge" id="badge"></div>
@@ -163,7 +163,7 @@
 
   <!-- 대화 창 -->
   <div class="chat">
-    <div class="hd" data-tauri-drag-region><img class="av" id="hdav" src="../ref/source_final.png"><div><div class="ti" id="nameC">…</div><div class="su" id="liveLabel">연결 중…</div></div><span class="vt vidwin" id="vidToggle" title="영상 창 보이기/숨기기" onclick="toggleVideoWin()">🎬</span><span class="vt" id="themeBtn" data-i18n-title="theme" title="테마" onclick="toggleTheme(event)">🎨</span><span class="vt" id="vt" data-i18n-title="voice" title="음성 켜기/끄기" onclick="toggleVoice()">🔊</span></div>
+    <div class="hd"><img class="av" id="hdav" src="../ref/source_final.png"><div><div class="ti" id="nameC">…</div><div class="su" id="liveLabel">연결 중…</div></div><span class="vt vidwin" id="vidToggle" title="영상 창 보이기/숨기기" onclick="toggleVideoWin()">🎬</span><span class="vt" id="themeBtn" data-i18n-title="theme" title="테마" onclick="toggleTheme(event)">🎨</span><span class="vt" id="vt" data-i18n-title="voice" title="음성 켜기/끄기" onclick="toggleVoice()">🔊</span></div>
     <div class="chatwrap">
       <div class="log" id="log"><div class="empty" data-i18n-html="empty">대화를 시작하세요.<br>파일 첨부 📎 · 스킬 <b>/</b> · Enter 전송</div></div>
       <div class="skillmenu" id="skillmenu"></div>
