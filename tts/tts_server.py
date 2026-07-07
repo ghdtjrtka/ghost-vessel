@@ -43,7 +43,7 @@ def _fifo():
             _cv.notify_all()
 
 # 로컬 전용 — 악성 웹페이지의 크로스사이트 제어(provider 변경·설치·클로닝·합성) 차단.
-_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost|tauri\.localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
 
 @app.before_request
 def _origin_guard():

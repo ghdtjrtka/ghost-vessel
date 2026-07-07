@@ -314,7 +314,7 @@ class OpenClawConnector:
 CONNECTOR = HermesConnector() if AGENT == "hermes" else OpenClawConnector()
 
 # 로컬 전용 제어 HTTP — 악성 웹페이지가 /say로 에이전트에 명령 못 넣게 오리진/호스트 가드.
-_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost|tauri\.localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
 
 class Ctrl(BaseHTTPRequestHandler):
     def log_message(self, *a):  # quiet

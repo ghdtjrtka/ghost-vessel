@@ -49,7 +49,7 @@ def get_model():
     return _model
 
 # 로컬 전용 — 외부 웹페이지가 모델 로드/전사를 트리거하지 못하게 차단.
-_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost|tauri\.localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
 
 @app.before_request
 def _origin_guard():
