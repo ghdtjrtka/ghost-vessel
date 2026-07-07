@@ -172,6 +172,8 @@
 <script src="vad/bundle.min.js"></script>
 <script>
 const BRIDGE='http://127.0.0.1:8900', TTS='http://127.0.0.1:8899', STT='http://127.0.0.1:8898';
+// HTML 이스케이프 — LLM/프리셋/에이전트 등 신뢰불가 데이터를 innerHTML에 넣을 때 필수(XSS 방지).
+const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // 라이선스 게이트: 오픈엔진(레포)은 required=false(무료). 패키징된 통파일 배포에서만 packager가
 // required=true로 켠다(그때 첫 실행에 키 입력창). base = license-server(예: agepo.co.kr/license).
 // 패키저가 통파일 HTML의 <head>에 `<script>var GV_LICENSE_REQUIRED=true</script>`만 넣으면 켜짐(큰 JS 무수정).
@@ -399,7 +401,7 @@ async function agentCtl(op){
 }
 function setBadge(emo,inten){ if(!emo||emo==='neutral'){ $('badge').style.display='none'; return;}
   const lbl=(PRESET&&PRESET.emotion&&PRESET.emotion.labels&&PRESET.emotion.labels[emo])||emo;   // 프리셋 라벨(한글)
-  $('badge').style.display='block'; $('badge').innerHTML=`<b>${lbl}</b> · ${inten??''}`; }
+  $('badge').style.display='block'; $('badge').innerHTML=`<b>${esc(lbl)}</b> · ${esc(inten??'')}`; }
 
 // ── 대화 로그 (스크롤) ──
 function atBottom(){ const l=$('log'); return l.scrollHeight-l.scrollTop-l.clientHeight<80; }
@@ -412,8 +414,8 @@ function appendCmd(text){ addRow('cmd', bubble(text)); }
 function appendAgent(text){ if(!text)return; addRow('a', bubble(text)); }
 function renderData(items){ if(!items||!items.length)return; clearEmpty(); const stick=atBottom();
   for(const it of items){
-    if(it.type==='code'){ const d=document.createElement('div'); d.className='code'; d.innerHTML=`<div class="bar">${it.lang}<button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.closest('.code').querySelector('pre').textContent)">복사</button></div><pre></pre>`; d.querySelector('pre').textContent=it.content; $('log').appendChild(d); }
-    else if(it.type==='file'){ const href=BRIDGE+'/file?path='+encodeURIComponent(it.path); const d=document.createElement('div'); d.className='file'; d.innerHTML=`<span class="ic">📄</span><span class="fn">${it.name}</span><a href="${href}" download>받기</a>`; $('log').appendChild(d); }
+    if(it.type==='code'){ const d=document.createElement('div'); d.className='code'; d.innerHTML=`<div class="bar">${esc(it.lang)}<button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.closest('.code').querySelector('pre').textContent)">복사</button></div><pre></pre>`; d.querySelector('pre').textContent=it.content; $('log').appendChild(d); }
+    else if(it.type==='file'){ const href=BRIDGE+'/file?path='+encodeURIComponent(it.path); const d=document.createElement('div'); d.className='file'; d.innerHTML=`<span class="ic">📄</span><span class="fn">${esc(it.name)}</span><a href="${esc(href)}" download>받기</a>`; $('log').appendChild(d); }
     else { const d=document.createElement('div'); d.className='code'; d.innerHTML='<pre></pre>'; d.querySelector('pre').textContent=JSON.stringify(it,null,2); $('log').appendChild(d); }
   }
   if(stick)scroll();
@@ -1019,7 +1021,7 @@ function previewSeg(s,el){ document.querySelectorAll('.chip.on').forEach(c=>c.cl
 function buildPerf(){ const g=$('segGrid'); if(!g||g.childElementCount)return; $('segCount').textContent='('+SEGS.length+')';
   const order={transition:0,loop:1}; const list=[...SEGS].sort((a,b)=>(order[a.kind]??2)-(order[b.kind]??2)||a.name.localeCompare(b.name));
   for(const s of list){ const c=document.createElement('div'); c.className='chip '+(s.group==='alive'?'alive':(s.kind==='loop'?'loop':''));
-    c.innerHTML=`<span class="n">${s.name}</span><span class="m">${s.emotion||s.group||''} · ${s.frames||''}f</span>`;
+    c.innerHTML=`<span class="n">${esc(s.name)}</span><span class="m">${esc(s.emotion||s.group||'')} · ${esc(s.frames||'')}f</span>`;
     c.onclick=()=>previewSeg(s,c); g.appendChild(c); }
   const hints=['[happy] 좋아! [wink] 윙크','[concerned:0.8] 음… 이거 확인이 필요해','[surprise] 헐 [excited] 대박!','[skeptical] 진짜야? [smug] 거봐'];
   const h=$('perfHints'); hints.forEach(x=>{ const s=document.createElement('span'); s.textContent=x; s.onclick=()=>{$('perfIn').value=x;}; h.appendChild(s); }); }
@@ -1044,11 +1046,11 @@ function renderSkills(filter){ const m=$('skillmenu'); const f=(filter||'').toLo
   const list=SKILLS.filter(s=>s.cmd.toLowerCase().startsWith(f));
   if(!list.length){ m.style.display='none'; return; }
   m.innerHTML=''; list.forEach(s=>{ const d=document.createElement('div');
-    d.innerHTML=`<b>${s.cmd}</b>`+(s.desc?` <span class="cdesc">${s.desc}</span>`:'');
+    d.innerHTML=`<b>${esc(s.cmd)}</b>`+(s.desc?` <span class="cdesc">${esc(s.desc)}</span>`:'');
     d.onclick=()=>{ $('chatInput').value=s.cmd+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
   m.style.display='block'; m.scrollTop=0; }
 function toggleSkills(){ const m=$('skillmenu'); if(m.style.display==='block'){ m.style.display='none'; return; } renderSkills(''); }
-$('fileInput')?.addEventListener('change',e=>{ for(const f of e.target.files){ const n=document.createElement('div'); n.className='file'; n.innerHTML=`<span class="ic">📎</span><span class="fn">${f.name}</span><span style="margin-left:auto;color:var(--dim);font-size:11px">${(f.size/1024).toFixed(0)}KB</span>`; addRow('u',n); sendToBridge('[파일 첨부] '+f.name); } e.target.value=''; });
+$('fileInput')?.addEventListener('change',e=>{ for(const f of e.target.files){ const n=document.createElement('div'); n.className='file'; n.innerHTML=`<span class="ic">📎</span><span class="fn">${esc(f.name)}</span><span style="margin-left:auto;color:var(--dim);font-size:11px">${(f.size/1024).toFixed(0)}KB</span>`; addRow('u',n); sendToBridge('[파일 첨부] '+f.name); } e.target.value=''; });
 
 async function boot(){
   await loadPreset();                                    // 프리셋 먼저 (경로·이름·폰트·테마)

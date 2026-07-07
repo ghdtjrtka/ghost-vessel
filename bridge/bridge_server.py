@@ -14,7 +14,7 @@ is not native to Hermes). Swap /hermes/out's caller with the real relay WS
 connector (gateway dials it, delivers `send{content,metadata}`) — the parse+push
 core stays identical.
 """
-import json, queue, threading, time, os
+import json, queue, threading, time, os, re
 from flask import Flask, request, jsonify, Response, send_file
 import parser as P
 import preset as PRE
@@ -45,11 +45,28 @@ def publish(payload):
             try: q.put_nowait(data)
             except Exception: pass
 
+# 로컬 전용 서버 — 악성 웹페이지의 크로스사이트 접근(임의 파일 읽기·에이전트 제어) 차단.
+_LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
+
+@app.before_request
+def _origin_guard():
+    if request.method == "OPTIONS":
+        return None
+    origin = request.headers.get("Origin")
+    if origin and not _LOCAL_ORIGIN.match(origin):          # 크로스사이트 fetch 차단
+        return jsonify(error="cross-origin blocked"), 403
+    host = (request.headers.get("Host") or "").split(":")[0]
+    if host and host not in ("127.0.0.1", "localhost"):     # DNS-rebinding 차단
+        return jsonify(error="bad host"), 403
+
 @app.after_request
 def cors(r):
-    r.headers["Access-Control-Allow-Origin"] = "*"
+    origin = request.headers.get("Origin")
+    if origin and _LOCAL_ORIGIN.match(origin):
+        r.headers["Access-Control-Allow-Origin"] = origin   # allowlist된 로컬 오리진만 반사
     r.headers["Access-Control-Allow-Headers"] = "Content-Type"
     r.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    r.headers["Vary"] = "Origin"
     return r
 
 @app.route("/health")
@@ -335,15 +352,26 @@ def hermes_in():
     publish(P.parse(reply, seq=_seq))
     return jsonify(ok=True, forwarded=text, mode="demo")
 
+# 파일 전송(데이터 평면). 임의 경로 읽기 방지 — allowlist된 outbox 밑만 서빙.
+# 기본 outbox = <repo>/files ; 추가 경로는 FILE_OUTBOX 환경변수(os.pathsep 구분).
+def _file_bases():
+    bases, env = [], os.environ.get("FILE_OUTBOX", "")
+    for p in (env.split(os.pathsep) if env else []):
+        if p.strip():
+            bases.append(os.path.realpath(p.strip()))
+    bases.append(os.path.realpath(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "files")))
+    return bases
+_FILE_BASES = _file_bases()
+
 @app.route("/file")
 def serve_file():
-    # File transfer over the chat/data plane. (Demo: serves by path; a real
-    # deployment scopes this to an allow-listed outbox dir.)
     path = request.args.get("path", "")
-    if not path or not os.path.isfile(path):
-        return jsonify(error="not found", path=path), 404
-    return send_file(path, as_attachment=True,
-                     download_name=os.path.basename(path))
+    if not path:
+        return jsonify(error="not found"), 404
+    rp = os.path.realpath(path)                              # 심볼릭·../ 정규화
+    if not (os.path.isfile(rp) and any(rp == b or rp.startswith(b + os.sep) for b in _FILE_BASES)):
+        return jsonify(error="forbidden"), 403              # outbox 밖 = 차단
+    return send_file(rp, as_attachment=True, download_name=os.path.basename(rp))
 
 @app.route("/events")
 def events():
