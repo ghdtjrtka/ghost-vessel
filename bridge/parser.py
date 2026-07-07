@@ -11,27 +11,48 @@ Code fences ```lang ... ``` -> data{type:code}. File markers [[file:path|name]]
 """
 import re, json
 
+# Gemini 서브컬쳐 감정셋(2026-07-07 피봇). 실제 available은 preset emotion_map/manifest가 결정.
 KNOWN = {
-    "happy","smile","awkward_smile","excited","smug","smug_glance","smirk",
-    "pout","wink","attentive","concerned","forced_smile","angry","awkward",
-    "downcast","skeptical","sheepish","surprise_big","shocked","tongue","rage",
-    "annoyed","disgust","frown_subtle","curious",
-    "laugh_big","amazed","eyeroll","kissy","distressed","wince","glare",
-    "exasperated","sleepy","blissful","scowl","shy",
-    "neutral","groove","talking",
+    "shy","blissful","kissy","smile","wink","tongue","smirk","smug","excited","laugh_big",
+    "curious","skeptical","surprise_big","pout","annoyed","distressed",
+    "wave","pondering","sigh",
+    "working","reading","dance","tehe","crying","leaveitto","searching","stretch",
+    "neutral","talking",
 }
+# 옛 감정어/동의어 → 신 16셋 중 가장 가까운 것으로 매핑(LLM이 예전 태그를 뱉어도 안전).
 ALIAS = {
-    "smiling":"smile","laugh":"excited","joy":"happy","sad":"downcast","worried":"concerned",
-    "mad":"angry","doubt":"skeptical","confused":"awkward","embarrassed":"awkward_smile",
-    "think":"skeptical","thinking":"skeptical","annoy":"annoyed","irritated":"annoyed",
-    "frustrated":"annoyed","displeased":"frown_subtle","frown":"frown_subtle",
-    "eww":"disgust","grossed":"disgust","horror":"shocked","stunned":"shocked","shock":"shocked",
-    "wonder":"curious","interested":"curious","smirking":"smirk","sly":"smirk",
-    "playful":"tongue","proud":"smug","sideeye":"smug_glance",
-    # 2026-07-06 재태깅: 세그먼트 실사와 이름 일치화 (구명칭은 별칭으로 유지)
-    "eyeshut":"attentive","listening":"attentive",
-    "surprise":"surprise_big","startled":"surprise_big",
-    "ashamed":"shy","bashful":"shy",
+    "smiling":"smile","happy":"smile","joy":"smile","glad":"smile","warm":"smile",
+    "laugh":"laugh_big","lol":"laugh_big",
+    "content":"blissful","satisfied":"blissful","cozy":"blissful",
+    "bashful":"shy","ashamed":"shy","embarrassed":"shy",
+    "kiss":"kissy","heart":"kissy","love":"kissy",
+    "playful":"tongue","teasing":"tongue","tease":"tongue",
+    "smirking":"smirk","sly":"smirk","mischievous":"smirk",
+    "proud":"smug","confident":"smug","doya":"smug","smug_glance":"smug","sideeye":"smug",
+    "wonder":"curious","interested":"curious","attentive":"curious","eyeshut":"curious","listening":"curious",
+    "doubt":"skeptical","suspicious":"skeptical","unsure":"skeptical",
+    "think":"pondering","thinking":"pondering","ponder":"pondering","hmm":"pondering","considering":"pondering",
+    "sigh":"sigh","exhale":"sigh","tired":"sigh","weary":"sigh","relieved":"sigh",
+    "wave":"wave","hi":"wave","hello":"wave","hey":"wave","greet":"wave","greeting":"wave","bye":"wave","goodbye":"wave",
+    "surprise":"surprise_big","startled":"surprise_big","shock":"surprise_big","shocked":"surprise_big",
+    "stunned":"surprise_big","amazed":"surprise_big","astonished":"surprise_big",
+    "sulky":"pout","frown":"pout","frown_subtle":"pout","grumpy":"pout",
+    "annoy":"annoyed","irritated":"annoyed","frustrated":"annoyed","displeased":"annoyed",
+    "mad":"annoyed","angry":"annoyed","rage":"annoyed","jitome":"annoyed","exasperated":"annoyed","eyeroll":"annoyed",
+    "sad":"distressed","teary":"distressed","upset":"distressed","downcast":"distressed",
+    "worried":"distressed","concerned":"distressed","wince":"distressed",
+    # 신셋에 없어 근사 매핑되는 옛 감정
+    "awkward":"shy","awkward_smile":"shy","sheepish":"shy","forced_smile":"smile",
+    "disgust":"annoyed","scowl":"annoyed","glare":"annoyed","sleepy":"neutral",
+    # ── 액션 세트(2026-07-08) 별칭 ──
+    "typing":"working","noting":"working","busy":"working","processing":"working","note":"working",
+    "review":"reading","reviewing":"reading","examine":"reading","inspecting":"reading","scanning":"reading",
+    "dancing":"dance","celebrate":"dance","celebrating":"dance",
+    "oops":"tehe","mybad":"tehe","teehee":"tehe","whoops":"tehe","tehepero":"tehe",
+    "cry":"crying","sob":"crying","sobbing":"crying","bawl":"crying","wail":"crying","weeping":"crying",
+    "leaveit":"leaveitto","gotit":"leaveitto","onit":"leaveitto","willdo":"leaveitto",
+    "search":"searching","looking":"searching","lookup":"searching","find":"searching","finding":"searching",
+    "stretching":"stretch",
 }
 TAG  = re.compile(r"\[\s*([a-zA-Z_]+)\s*(?::\s*([01](?:\.\d+)?|\.\d+))?\s*\]")
 CODE = re.compile(r"```([a-zA-Z0-9_+-]*)\n?(.*?)```", re.S)
@@ -42,28 +63,39 @@ FILE = re.compile(r"\[\[\s*file\s*:\s*([^\|\]]+?)\s*(?:\|\s*([^\]]+?))?\s*\]\]")
 # of tags. So the avatar still emotes, we map emojis/keywords -> an emotion and
 # strip the emojis out of the SPOKEN text (TTS shouldn't read them anyway).
 EMOJI_EMO = {
-    "excited": "😆😂🤣🎉✨🔥💥🙌🥳🚀",
-    "happy":   "😊🙂😄😁🤗😍😘💖💕❤🧡💛💚💙💜🥰☺😻👍",
-    "smug":    "😎😏😼",
-    "wink":    "😉😜",
-    "tongue":  "😝😛😋",
-    "awkward_smile": "😅😬",
-    "downcast": "😢😞😔🥺😭",
-    "angry":   "😠😡🤬",
-    "surprise_big": "😮😲🙀",
+    "excited": "😆🎉✨🔥💥🙌🥳🚀",
+    "laugh_big": "😂🤣",
+    "smile":   "😊🙂😄😁🤗☺👍",
+    "blissful":"😌😍🥰😻💖💕❤🧡💛💚💙💜",
+    "kissy":   "😘😗😙😚💋",
+    "smug":    "😎😼",
+    "smirk":   "😏",
+    "wink":    "😉",
+    "tongue":  "😝😛😋😜",
     "shy":     "😳",
-    "skeptical": "🤔🧐",
+    "distressed": "😢😞😔🥺😭",
+    "annoyed": "😠😡🤬😤😾",
+    "surprise_big": "😮😲🙀😱",
+    "skeptical": "🧐",
     "pout":    "😤",
+    "pondering": "🤔💭",
+    "sigh":    "😮‍💨😔😪",
+    "wave":    "👋",
 }
 KEYWORD_EMO = [
-    ("excited", ("대박", "미쳤", "레전드", "가보자", "고고", "쩐다", "짱")),
-    ("happy",   ("좋아", "최고", "행복", "기뻐", "고마워", "사랑", "즐거", "굿")),
+    ("excited", ("대박", "미쳤", "레전드", "가보자", "고고", "쩐다", "짱", "신난")),
+    ("laugh_big", ("ㅋㅋ", "ㅎㅎ", "웃겨", "빵터")),
+    ("smile",   ("좋아", "최고", "고마워", "기뻐", "굿", "반가")),
+    ("blissful",("행복", "만족", "사랑", "포근", "좋다")),
     ("smug",    ("거봐", "내가 뭐랬", "당연하지", "봤지", "역시 나")),
-    ("pout",    ("흥", "삐졌", "치사", "몰라")),
+    ("tongue",  ("메롱", "약올", "장난", "해해")),
+    ("shy",     ("부끄", "수줍", "쑥스")),
+    ("pout",    ("흥", "삐졌", "치사", "몰라", "칫")),
+    ("annoyed", ("짜증", "귀찮", "됐어", "아 진짜")),
     ("surprise_big",("헐", "헉", "어머", "진짜?", "실화")),
-    ("downcast",("미안", "아쉽", "속상", "슬프", "안타깝")),
-    ("skeptical",("글쎄", "음..", "확실해", "진짜야")),
-    ("concerned",("조심", "위험", "걱정", "주의")),
+    ("distressed",("미안", "아쉽", "속상", "슬프", "안타깝", "ㅠㅠ")),
+    ("skeptical",("글쎄", "확실해", "진짜야", "의심")),
+    ("curious", ("뭐지", "궁금", "왜")),
 ]
 _EMOJI_ANY = re.compile(
     "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF❤️‍⭐✨]")
@@ -172,10 +204,11 @@ def parse(content, seq=0, session_id="hermes_local_01", output_mode="both"):
     beats = []
     for emo, inten, chunk in segs:
         if emo != "neutral":
-            t = strip_emojis(chunk)                       # explicit tag: keep, drop emojis
-            if t:
-                beats.append({"emotion": emo, "text": t,
-                              "intensity": round(inten if inten is not None else DEFAULT_INTENSITY, 2)})
+            t = strip_emojis(chunk).strip()               # explicit tag: keep, drop emojis
+            # 텍스트가 비어도 비트를 만든다 = 무음 제스처. LLM이 감정 뒤 액션을 조합할 수 있게
+            # (`[happy] 됐어! [dance]` → happy로 말한 뒤 dance 제스처만 무음 재생). 조합은 LLM 선택.
+            beats.append({"emotion": emo, "text": t,
+                          "intensity": round(inten if inten is not None else DEFAULT_INTENSITY, 2)})
         else:
             for e, t in _split_neutral(chunk):            # no tag: infer from emojis/keywords
                 if t:

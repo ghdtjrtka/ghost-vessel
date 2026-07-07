@@ -75,8 +75,12 @@ class MoodTracker:
         if dt_min <= 0:
             return
         k = min(1.0, self.params["decay_per_min"] * dt_min)
-        self.mood += (self.affinity - self.mood) * k
-        self.affinity *= (1.0 - min(1.0, 0.002 * dt_min))   # ~며칠 스케일로 중립화
+        # 비대칭 자동복귀: 긍정 무드만 시간이 지나면 중립(차분)으로 가라앉는다.
+        # 부정은 시간으로 복귀하지 않음 — 능동적으로 달래줘야(칭찬/대화) 회복.
+        # ("쉬었다 오니 계속 기뻐있는" 건 이상하지만, 삐친 건 풀어줘야 풀리는 게 자연스럽다.)
+        if self.mood > 0:
+            self.mood += (0.0 - self.mood) * k
+        self.affinity *= (1.0 - min(1.0, 0.002 * dt_min))   # 호감도는 며칠 스케일로 중립화
 
     # ── inputs ──────────────────────────────────────────────────────────
     def on_user_message(self, text: str):

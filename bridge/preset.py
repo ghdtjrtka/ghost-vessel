@@ -11,6 +11,33 @@ import json, os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # repo root
 PRESETS_DIR = os.path.join(ROOT, "presets")
 
+# ── 단일 팩(.gvp) 지원: presets/<id>.gvp 파일 하나에 아바타 전체가 들어감 ──
+# 폴더 프리셋(커뮤니티 모드)과 공존. 팩이면 클립을 디스크에 안 풀고 브리지가 메모리 서빙.
+try:
+    import gvpack
+except Exception:
+    gvpack = None
+_BRIDGE_URL = "http://127.0.0.1:8900"        # 팩 에셋을 브리지가 서빙(플레이어가 이 URL로 fetch)
+_PACK = {"id": None, "files": None}
+
+def _pack_path(pid):
+    return os.path.join(PRESETS_DIR, (pid or "_") + ".gvp")
+
+def _load_pack(pid):
+    """활성 프리셋이 <pid>.gvp면 메모리로 로드(캐시). files dict 반환, 아니면 None."""
+    if not gvpack:
+        return None
+    p = _pack_path(pid)
+    if not (pid and os.path.isfile(p) and gvpack.is_pack(p)):
+        return None
+    if _PACK["id"] != pid:
+        _PACK["id"], _PACK["files"] = pid, gvpack.read(p)
+    return _PACK["files"]
+
+def pack_file(sub):
+    """브리지 /pack/<sub> 서빙용 — 로드된 팩에서 바이트 반환(없으면 None)."""
+    return (_PACK["files"] or {}).get(sub)
+
 
 def _resolve_url(pid, p):
     if not p:
@@ -177,8 +204,38 @@ def list_presets():
     return out
 
 
+def _load_from_pack(pid, files):
+    """팩(.gvp) 내부 데이터로 프리셋 구성. 에셋 URL은 브리지 /pack 엔드포인트로
+    (클립은 메모리에서 서빙 — 디스크에 낱개로 안 풀림). 나머지는 폴더 프리셋과 동일 형태."""
+    def _j(n):
+        try: return json.loads(files[n].decode("utf-8"))
+        except Exception: return {}
+    m = _j("preset.json")
+    emo = _j("emotion_map.json") or _default_emotion_map()
+    base = _BRIDGE_URL + "/pack"
+    srcname = next((k for k in files if k.startswith("source.")), "source.png")
+    theme = m.get("theme")
+    font = dict(m.get("font") or {})
+    if font.get("url") and "://" not in font["url"]:
+        font["url"] = base + "/" + font["url"].lstrip("/")
+    return {
+        "id": m.get("id", pid), "name": m.get("name", pid),
+        "name_en": m.get("name_en", m.get("name", pid)),
+        "theme": (theme or {}).get("id") if isinstance(theme, dict) else theme,
+        "theme_obj": theme if isinstance(theme, dict) and "id" not in theme else None,
+        "voice": m.get("voice", {}), "font": font,
+        "avatar": {"source": base + "/" + srcname,
+                   "manifest": base + "/manifest.json",
+                   "segments_base": base + "/web"},
+        "emotion": emo, "sfw": m.get("sfw", True), "packed": True,
+    }
+
+
 def load(pid=None):
     pid = pid or active_id()
+    files = _load_pack(pid)
+    if files is not None:                                # 단일 팩(.gvp) 프리셋
+        return _load_from_pack(pid, files)
     pdir = os.path.join(PRESETS_DIR, pid)
     # preset.json은 이제 선택 — 없으면 폴더명/기본값으로 자동 구성
     m = {}
@@ -235,6 +292,16 @@ def available_emotions(pid=None):
     """활성 프리셋이 실제로 '채워둔' 감정 = manifest(명시 또는 자동)의 transition emotion들
     (+ neutral). 부분 프리셋에서 에이전트에게 이 감정만 알린다. 못 구하면 None(→ 전체 폴백)."""
     pid = pid or active_id()
+    files = _load_pack(pid)
+    if files is not None:                                # 팩: 내부 매니페스트에서 감정 추출
+        try:
+            man = json.loads(files["manifest.json"].decode("utf-8"))
+            emos = {s.get("emotion") for s in man.get("segments", [])
+                    if s.get("kind") == "transition" and s.get("emotion")}
+            emos.add("neutral")
+            return emos or None
+        except Exception:
+            return None
     try:
         m = {}
         pj = os.path.join(PRESETS_DIR, pid, "preset.json")

@@ -67,7 +67,7 @@ def stt():
     if not data or len(data) < 128:
         return jsonify(error="empty audio"), 400
     m = get_model()
-    # ?hint=미나미 → 고유명(에이전트 이름 등) 인식 바이어스
+    # ?hint=여름 → 고유명(에이전트 이름 등) 인식 바이어스
     hint = (request.args.get("hint") or os.environ.get("STT_HINT") or "").strip()
     segs, info = m.transcribe(io.BytesIO(data), language=LANG, beam_size=2,
                               vad_filter=True,      # 서버측 2차 VAD (무음 컷)

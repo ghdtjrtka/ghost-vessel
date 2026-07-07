@@ -19,6 +19,13 @@
   body.sep .divider{ display:none; }
   body.sep .call{ position:fixed; z-index:60; top:24px; right:24px; left:auto; width:300px; height:auto; aspect-ratio:9/16; resize:both; overflow:hidden; box-shadow:0 24px 70px #000d; transition:top .12s,left .12s,right .12s; }
   body.sep .call .hd{ cursor:move; }
+  /* 분리 모드: 채팅창은 떠있는 반투명 패널 → 마우스 올리면 불투명·활성 (데스크탑 오버레이) */
+  body.sep .chat{ position:fixed; right:24px; bottom:24px; z-index:55; width:min(380px,44vw);
+    height:min(56vh,520px); border-radius:18px; box-shadow:0 24px 70px #000c;
+    opacity:.14; transition:opacity .22s ease; }
+  body.sep .chat:hover{ opacity:1; }
+  /* 대화 숨김 토글 (영통 화면에서 자막만 남기고 채팅 오버레이 끔) */
+  body.nochat .chat{ display:none; }
   .call .hd{ position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center; gap:8px; padding:12px 14px; background:linear-gradient(#000b,#0000); font-size:13px; }
   .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
   .hd .nm{ font-weight:600; } .hd .st{ margin-left:auto; font-size:11px; color:var(--dim); }
@@ -26,7 +33,7 @@
   .call .lyr{ position:absolute; inset:0; transition:opacity .26s ease; will-change:opacity; }
   /* 줌 상한(capped-cover): 초세로 창에서 cover-crop이 얼굴만 꽉 채우는 것 방지.
      JS(applyZoomCap)가 영상 폭을 창폭×CAP까지만 허용 — 세로 여백은 방 톤 그라데이션. */
-  .call{ background:linear-gradient(180deg,#3a2140 0%,#241430 55%,#170d20 100%); }
+  .call{ background:#170d20; background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, #000 42%, var(--bg)) 100%); }
   .badge{ position:absolute; top:46px; right:12px; z-index:3; background:#000c; border:1px solid var(--line); border-radius:9px; padding:5px 9px; font-size:11px; color:var(--dim); display:none; }
   .badge b{ color:var(--txt); }
   .cap{ position:absolute; left:0; right:0; bottom:0; z-index:3; padding:22px 16px 16px; background:linear-gradient(#0000,#000d); font-size:15px; line-height:1.45; min-height:20px; }
@@ -68,11 +75,11 @@
   .chatwrap{ position:relative; flex:1; display:flex; flex-direction:column; min-height:0; }
 
   /* ── 이스터에그: 퍼포먼스 플레이어 (/sam) ── */
-  .perf{ position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; background:#000a; backdrop-filter:blur(4px); }
-  .perf.show{ display:flex; animation:pfade .18s ease; }
+  .perf{ position:fixed; inset:0; z-index:100; display:none; pointer-events:none; }
+  .perf.show{ display:block; }
   @keyframes pfade{ from{ opacity:0; transform:scale(.98); } to{ opacity:1; transform:none; } }
-  .perf .box{ width:min(760px,92vw); max-height:88vh; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--accent); border-radius:18px; overflow:hidden; box-shadow:0 30px 90px #000e, 0 0 0 1px #8b5cf633; }
-  .perf .top{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); background:linear-gradient(90deg,#8b5cf622,#0000); }
+  .perf .box{ pointer-events:auto; position:absolute; left:20px; bottom:20px; width:min(380px,46vw); max-height:74vh; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--accent); border-radius:18px; overflow:hidden; box-shadow:0 30px 90px #000e, 0 0 0 1px #8b5cf633; }
+  .perf .top{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); background:linear-gradient(90deg,#8b5cf622,#0000); cursor:move; user-select:none; }
   .perf .top .t{ font-weight:700; font-size:15px; letter-spacing:.3px; } .perf .top .sub{ font-size:11px; color:var(--dim); }
   .perf .top .x{ margin-left:auto; cursor:pointer; font-size:18px; color:var(--dim); } .perf .top .x:hover{ color:var(--txt); }
   .perf .body{ overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
@@ -110,7 +117,7 @@
 <body>
   <!-- 영상 창 -->
   <div class="call">
-    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
+    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span></div>
     <video id="vid" class="lyr" muted playsinline></video>
     <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
     <div class="badge" id="badge"></div>
@@ -203,7 +210,7 @@ const I18N={
 };
 let curLang='ko', curName='';
 function t(k){ return (I18N[curLang]&&I18N[curLang][k]) ?? I18N.ko[k] ?? k; }
-function updateTitle(){ document.title=(curName||'미나미')+t('title_suffix'); }
+function updateTitle(){ document.title=(curName||'여름')+t('title_suffix'); }
 function applyLang(){ document.documentElement.lang=curLang;
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
   document.querySelectorAll('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
@@ -225,17 +232,23 @@ const has=n=>!!byName[n];
 // ── 이중버퍼 크로스페이드: src 교체 시 검은 프레임 깜빡임 제거 ──
 let front=$('vid'), back=$('vid2'), settleT={}; const FADE=260;
 function swapLayers(){ const t=front; front=back; back=t; }
-function crossTo(n, loop, fade){ return new Promise(res=>{
-  const fd=(fade==null?FADE:fade); let done=false;
-  const go=()=>{ if(done)return; done=true; back.removeEventListener('playing',go);
-    back.style.transitionDuration=(fd/1000)+'s'; front.style.transitionDuration=(fd/1000)+'s';
-    back.style.opacity=1; front.style.opacity=0; const prev=front; swapLayers();
-    setTimeout(()=>{ try{ prev.pause(); }catch(e){} }, fd+80); res(); };
-  back.loop=!!loop; back.onended=null; back.dataset.cur=n;
-  back.addEventListener('playing',go);
-  try{ back.src=segUrl(n); const p=back.play(); if(p&&p.catch)p.catch(()=>setTimeout(go,50)); }catch(e){ setTimeout(go,50); }
-  setTimeout(go, 1100); // 안전장치: 'playing' 미발생 시(캐시 등) 강제 전환
-}); }
+let _crossQ=Promise.resolve();     // crossTo 직렬화 — 동시 레이어 스왑 레이스(감정 씹힘) 방지
+function crossTo(n, loop, fade, startAt){
+  const run=()=>new Promise(res=>{
+    const fd=(fade==null?FADE:fade); let done=false;
+    const go=()=>{ if(done)return; done=true; back.removeEventListener('playing',go);
+      back.style.transitionDuration=(fd/1000)+'s'; front.style.transitionDuration=(fd/1000)+'s';
+      back.style.opacity=1; front.style.opacity=0; const prev=front; swapLayers();
+      setTimeout(()=>{ try{ prev.pause(); }catch(e){} }, fd+80); res(); };
+    back.loop=!!loop; back.onended=null; back.dataset.cur=n;
+    if(startAt){ const sk=()=>{ try{ back.currentTime=startAt; }catch(e){} back.removeEventListener('loadedmetadata',sk); };
+      back.addEventListener('loadedmetadata',sk); }   // 정면(settle) 프레임에서 시작 → 이음새 정렬
+    back.addEventListener('playing',go);
+    try{ back.src=segUrl(n); const p=back.play(); if(p&&p.catch)p.catch(()=>setTimeout(go,50)); }catch(e){ setTimeout(go,50); }
+    setTimeout(go, 1100); // 안전장치: 'playing' 미발생 시(캐시 등) 강제 전환
+  });
+  const p=_crossQ.then(run, run); _crossQ=p.catch(()=>{}); return p;   // 이전 전환 끝난 뒤 실행
+}
 function loopSeg(n){ if(!has(n))return; if(front.dataset.cur===n&&front.loop&&!front.paused)return;
   crossTo(n,true).then(()=>{ front.playbackRate=(MOOD&&MOOD.rate)||1; }); }
 function playOnceAsync(n, fade, capMs){ return new Promise(res=>{ if(!has(n)){res();return;}
@@ -279,18 +292,28 @@ window.addEventListener('resize',applyZoomCap);
 
 // ── 무드 상태 (브리지 mood 트래커가 SSE로 push) ──
 let MOOD={base:'neutral',mood:0,affinity:0,rate:1.0};
+let _neuIdx=0;   // 중립 idle 변주 인덱스 (alive_idle ↔ alive_idle2 번갈아)
+function _neuIdle(){ const o=['alive_idle','alive_idle2'].filter(has); return o.length?o[_neuIdx%o.length]:'alive_idle'; }
 function idleBase(){
   const bs=(PRESET&&PRESET.emotion&&PRESET.emotion.bases)||{};
   const cand=bs[MOOD.base];
-  if(cand&&has(cand)) return cand;                       // 무드 base idle
-  return has('alive_idle')?'alive_idle':(has('idle_loop')?'idle_loop':'talking_clear_loop');
+  if(cand&&has(cand)&&MOOD.base!=='neutral') return cand;   // 긍정/부정 무드 idle
+  return _neuIdle();                                          // 중립: 두 컷 번갈아
 }
 function setMood(m){ if(!m)return; const prev=MOOD.base; MOOD=m;
   if(front&&front.loop) front.playbackRate=MOOD.rate||1;   // 처지면 느리게, 밝으면 생기
   if(m.base!==prev && stateKey==='online') idle();          // 대기 중이면 base 크로스페이드
 }
+// 무드 자동 갱신: 대기 중 45초마다 /mood 폴 → 시간 감쇠 반영.
+// 긍정은 중립으로 자동복귀(mood.py 비대칭 감쇠), 부정은 시간감쇠 없으니 그대로(달래야 회복).
+setInterval(async ()=>{ if(stateKey!=='online')return;
+  try{ setMood(await (await fetch(BRIDGE+'/mood',{cache:'no-store'})).json()); }catch(e){} }, 45000);
 function talkBase(){ return has('talking_calm_loop')?'talking_calm_loop':(has('talking_clear_loop')?'talking_clear_loop':idleBase()); }
-function idle(){ loopSeg(idleBase()); setState('online'); $('badge').style.display='none'; }
+function idle(){ _neuIdx++; loopSeg(idleBase()); setState('online'); $('badge').style.display='none'; }
+// 감정(정면에서 끝남) → idle을 정면(settle) 프레임에서 재개해 이음새를 맞춘다.
+function idleFront(){ _neuIdx++; const n=idleBase(), st=settleT[n]; const at=(st&&st.length)?st[0]:0;
+  crossTo(n,true,FADE,at).then(()=>{ front.playbackRate=(MOOD&&MOOD.rate)||1; });
+  setState('online'); $('badge').style.display='none'; }
 let stateKey='online', liveKey='live_connecting';
 function setState(k){ stateKey=k; $('stateLabel').textContent=t('state_'+k);
   if(k==='speaking'){ $('dot').style.background='var(--accent)'; } else { _dotByAgent(); } }
@@ -357,6 +380,17 @@ function renderData(items){ if(!items||!items.length)return; clearEmpty(); const
 
 // ── TTS ──
 let ttsPlaying=false;   // 하프듀플렉스: 재생 중엔 마이크 청취 정지 (에코 루프 방지)
+// 필러(시간벌기) 런타임 상태 — 활성 엔진 합성지연 추정 + 준비된 필러 목록
+let TTS_LAT={base:1,per_char:0.1}, FILLER={ready:[],tiers:{},emotions:{},enabled:true};
+async function refreshTtsRuntime(){
+  try{ const p=await (await fetch(TTS+'/providers',{cache:'no-store'})).json();
+    const act=(p.providers||[]).find(x=>x.provider===p.active);
+    if(act&&act.meta&&act.meta.latency) TTS_LAT=act.meta.latency;
+  }catch(e){}
+  try{ const f=await (await fetch(TTS+'/fillers',{cache:'no-store'})).json();
+    FILLER={ready:f.ready||[], tiers:f.tiers||{}, emotions:f.emotions||{}, enabled:f.enabled!==false};
+  }catch(e){}
+}
 // 프리페치: 감정 세그먼트가 재생되는 동안 합성을 미리 시작 → 체감 지연 절감
 function ttsFetch(text){ if(!voiceOn||!text) return null;
   const v=(PRESET&&PRESET.voice)||{};
@@ -384,12 +418,47 @@ async function playTTSSeq(parts,fullText){
   if(!parts){ await playTTS(null,fullText); return; }
   for(const p of parts){ await playTTS(p.urlP,p.text); }
 }
-function playTTS(urlP,text){ return new Promise(async res=>{
+// 오디오 1개를 재생하고 끝나면 resolve (워치독으로 고착 방지)
+function _clip(src, maxMs){ return new Promise(res=>{
+  const a=new Audio(src); let d=0;
+  const done=()=>{ if(d)return; d=1; clearTimeout(w); res(); };
+  const w=setTimeout(done, maxMs||8000); a.onended=done; a.onerror=done; a.play().catch(done);
+}); }
+// 필러 루프: 실오디오 준비(stopRef.stop) 전까지 tier에 맞는 필러를 순차 재생.
+// est가 클수록 긴 tier부터, 서로 다른 필러를 돌려 반복감을 줄임. 안전 상한 6개.
+async function _fillerLoop(est, stopRef){
+  if(!FILLER.ready.length) return;
+  const order = est>10?['long','med','short']:est>4?['med','short']:['short'];
+  let k=0;
+  while(!stopRef.stop && k<6){
+    const tier=order[Math.min(k,order.length-1)];
+    let ids=(FILLER.tiers[tier]||[]).filter(i=>FILLER.ready.includes(i));
+    if(!ids.length) ids=FILLER.ready;
+    const id=ids[k%ids.length];
+    if(stopRef.stop) break;
+    await _clip(TTS+'/filler?id='+id+'&n='+k, 6000);
+    k++;
+  }
+}
+function playTTS(urlP,text,fillerId){ return new Promise(async res=>{
   const fallback=()=>setTimeout(res, Math.min(3200,600+(text||'').length*55));
   // 숨은 탭은 발화 금지 (여러 탭이 같은 SSE를 받아 각자 재생 → 중복 발화 방지)
   if(!voiceOn||!text||document.hidden){ document.hidden?setTimeout(res,150):fallback(); return; }
+  // ── 필러 백본: 합성 ETA가 임계 이상이고 필러가 준비돼 있으면, 실오디오 대기 중 필러 재생 ──
+  const est=(TTS_LAT.base||1)+(TTS_LAT.per_char||0)*text.length;
+  const stopRef={stop:false}; let fillerP=null;
+  const armed = FILLER.enabled && FILLER.ready.length && (fillerId || est>=1.3);
+  if(armed){
+    ttsPlaying=true;
+    if(fillerId && FILLER.ready.includes(fillerId))       // LLM이 고른 필러 우선(즉시 1개)
+      fillerP=_clip(TTS+'/filler?id='+fillerId+'&n=x',6000).then(()=>{ if(!stopRef.stop) return _fillerLoop(est,stopRef); });
+    else
+      fillerP=_fillerLoop(est,stopRef);
+  }
   let url=null; try{ url=await urlP; }catch(e){}
-  if(!url){ fallback(); return; }
+  stopRef.stop=true;                                   // 실오디오 준비 → 현재 필러 클립 끝나면 종료
+  if(fillerP){ try{ await fillerP; }catch(e){} }
+  if(!url){ ttsPlaying=false; fallback(); return; }
   const a=new Audio(url); ttsPlaying=true; let d=0;
   const done=()=>{ if(d)return; d=1; ttsPlaying=false; clearTimeout(wd); URL.revokeObjectURL(url); res(); };
   const wd=setTimeout(done, 9000+text.length*150);   // watchdog: onended 미발화/차단 시 고착 방지
@@ -397,6 +466,7 @@ function playTTS(urlP,text){ return new Promise(async res=>{
   a.play().catch(done);                              // autoplay 차단이어도 플래그 안 고착
 }); }
 function toggleVoice(){ voiceOn=!voiceOn; $('vt').textContent=voiceOn?'🔊':'🔇'; }
+function toggleChat(){ const off=document.body.classList.toggle('nochat'); const b=$('chatBtn'); if(b){ b.textContent=off?'🗨️':'💬'; b.style.opacity=off?'.45':''; } try{ localStorage.setItem('avatarNoChat', off?'1':''); }catch(e){} }
 
 // ── 퍼포먼스 재생: 행동/대화/데이터 3-플레인, 감정 비트 순차 ──
 let confirmCb=null, playToken=0;
@@ -409,7 +479,7 @@ async function play(p){
     const seg=segFor(b.emotion);
     setBadge(b.emotion,b.intensity);
     if(seg){ await playOnceAsync(seg.name,120); }
-    if(tok===playToken) idle();
+    if(tok===playToken) idleFront();
     return;
   }
   renderData(p.data);
@@ -424,6 +494,16 @@ async function play(p){
     if(b.text)appendAgent(b.text);                        // 채팅 로그는 즉시
     const pre=ttsFetchSeq(b.text);                        // 문장별 합성을 세그먼트 재생과 병렬로
     const seg=segFor(b.emotion);
+    // ── 필러 프렐류드: 첫 비트 + 합성 느릴 때만, 단발 골똘/한숨(루프X) → 이어서 답변 감정 ──
+    if(b===beats[0] && voiceOn && !document.hidden && FILLER.enabled && FILLER.ready.length){
+      const est0=(TTS_LAT.base||1)+(TTS_LAT.per_char||0)*(b.text||'').length;
+      if(est0>=1.6){
+        const fid=(FILLER.tiers.short||[]).filter(i=>FILLER.ready.includes(i))[0]||FILLER.ready[0];
+        const fEmo=(fid&&FILLER.emotions&&FILLER.emotions[fid])||'pondering';
+        const fSeg=segFor(fEmo)||SEGS.find(s=>s.name===fEmo);
+        if(fSeg){ setState('speaking'); try{ _clip(TTS+'/filler?id='+fid+'&n=x',6000); }catch(e){} await playOnceAsync(fSeg.name,FADE); if(tok!==playToken)return; }
+      }
+    }
     let matched=false;
     // idle에서 반응 시작할 때만 정위치 대기 (talk 루프는 이미 정면이라 대기 불필요)
     if(seg && settleT[front.dataset.cur]){ matched=await waitForSettle(tok); if(tok!==playToken)return; }
@@ -432,7 +512,7 @@ async function play(p){
     if(tok!==playToken)return;
     loopSeg(talkBase()); await playTTSSeq(pre,b.text);
   }
-  if(tok===playToken) idle();
+  if(tok===playToken) idleFront();
 }
 function resolveConfirm(y){ if(confirmCb)confirmCb(y); }
 
@@ -476,7 +556,7 @@ async function loadPreset(){ try{
 
 // ── 이름: 프리셋 우선, 없으면 Hermes 페르소나(SOUL.md) ──
 async function loadName(){ if(PRESET&&PRESET.name) return;
-  try{ const c=await (await fetch(BRIDGE+'/config')).json(); curName=c.name||'미나미'; }catch(e){ curName='미나미'; }
+  try{ const c=await (await fetch(BRIDGE+'/config')).json(); curName=c.name||'여름'; }catch(e){ curName='여름'; }
   $('nameV').textContent=curName; $('nameC').textContent=curName; updateTitle(); }
 
 // ── 창 관리: 크기조절 · 합쳐진/분리 모드 · 스냅 ──
@@ -576,7 +656,12 @@ const _K=(ko,en)=>curLang==='en'?en:ko;
 const _TTS_DESC={ qwen:_K('로컬·클로닝(기본)','Local · cloning (default)'),
   elevenlabs:_K('클라우드·고품질 클로닝(API키 필요)','Cloud · premium cloning (API key)'),
   openai_compat:_K('OpenAI 호환 경량 로컬','OpenAI-compatible lightweight local'),
-  piper:_K('초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)') };
+  piper:_K('초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)'),
+  edge:_K('무료 클라우드·키 없음·한국어 우수(MS)','Free cloud · no key · great Korean (MS)'),
+  melo:_K('로컬·CPU·다국어(오프라인)','Local · CPU · multilingual (offline)') };
+const _EDGE_VOICES=[['ko-KR-SunHiNeural','한국어 여 (SunHi)'],['ko-KR-JiMinNeural','한국어 여 (JiMin)'],
+  ['ko-KR-YuJinNeural','한국어 여 (YuJin)'],['ko-KR-SeoHyeonNeural','한국어 여 (SeoHyeon)'],
+  ['ja-JP-NanamiNeural','일본어 여 (Nanami)'],['en-US-AvaNeural','영어 여 (Ava)']];
 async function buildTtsMenu(){
   const m=$('thememenu'); if(!m||!m.childElementCount) return;
   let d=document.getElementById('ttsmenu');
@@ -596,8 +681,37 @@ async function buildTtsMenu(){
   }
   sel.onchange=()=>setTtsProvider(sel.value);
   d.appendChild(sel);
-  // elevenlabs 선택 시 voice_id 입력 + 안내
   const act=data.providers.find(p=>p.provider===data.active);
+  // 활성 엔진 메타(품질·필수 의존성·설치안내·링크) — 오픈소스: 의존성을 UI에서 전부 안내. 현지화(KO/EN).
+  if(act && act.meta){
+    const mt=act.meta, KM=o=>o?(curLang==='en'?(o.en||o.ko):(o.ko||o.en)):'';
+    const box=document.createElement('div'); box.id='ttsmeta';
+    box.style.cssText='margin-top:8px;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:12px;line-height:1.55';
+    let html='';
+    if(KM(mt.quality)) html+='<div style="opacity:.9">'+KM(mt.quality)+'</div>';
+    if(KM(mt.deps)) html+='<div style="margin-top:6px"><b>'+_K('필수 의존성','Requirements')+':</b> '+KM(mt.deps)+'</div>';
+    if(KM(mt.setup)) html+='<div style="margin-top:6px;opacity:.85">'+KM(mt.setup)+'</div>';
+    box.innerHTML=html;
+    if(mt.links){ const lr=document.createElement('div'); lr.style.marginTop='6px';
+      for(const [k,url] of Object.entries(mt.links)){ const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener';
+        a.textContent='↗ '+k; a.style.cssText='color:var(--accent);margin-right:12px;text-decoration:none;font-size:11px'; lr.appendChild(a); }
+      box.appendChild(lr); }
+    const st=document.createElement('div'); st.style.marginTop='7px';
+    const installed=act.installed!==false, configured=act.configured!==false;
+    if(mt.installable && !installed && act.can_install){
+      const btn=document.createElement('div'); btn.className='langbtn';
+      btn.textContent=_K('▼ 이 엔진 설치','▼ Install this engine');
+      btn.onclick=()=>installProvider(data.active, st, btn); st.appendChild(btn);
+    } else if(!installed){
+      st.innerHTML='<span style="color:var(--warn,#e0a030)">'+_K('⚠ 수동 설치 필요 — 위 안내·링크 참고','⚠ manual setup — see notes/links above')+'</span>';
+    } else if(!configured && data.active!=='qwen'){
+      st.innerHTML='<span style="color:var(--warn,#e0a030)">'+_K('● 설치됨 · 설정 필요(키/보이스/URL)','● installed · needs config (key/voice/URL)')+'</span>';
+    } else {
+      st.innerHTML='<span style="color:var(--ok,#4caf50)">'+_K('✓ 준비됨','✓ ready')+'</span>';
+    }
+    box.appendChild(st); d.appendChild(box);
+  }
+  // elevenlabs 선택 시 voice_id 입력 + 안내
   if(data.active==='elevenlabs'){
     const inp=document.createElement('input'); inp.className='micsel'; inp.style.marginTop='6px';
     inp.placeholder=_K('ElevenLabs voice_id','ElevenLabs voice_id');
@@ -607,12 +721,125 @@ async function buildTtsMenu(){
     note.textContent=_K('API키: 환경변수 ELEVENLABS_API_KEY','API key: env ELEVENLABS_API_KEY');
     d.appendChild(note);
   }
-  if(act && !act.ready && data.active!=='qwen'){
-    const w=document.createElement('div'); w.className='lbl'; w.style.color='var(--warn,#e0a030)';
-    w.textContent=_K('⚠ 아직 준비 안 됨 — 설정 확인','⚠ not ready — check settings');
-    d.appendChild(w);
+  // edge 선택 시 보이스(여자/언어) 선택 + 미리듣기
+  if(data.active==='edge'){
+    const cur=(data.settings&&data.settings.voice)||'ko-KR-SunHiNeural';
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:6px;margin-top:6px;align-items:center';
+    const vs=document.createElement('select'); vs.className='micsel'; vs.style.flex='1';
+    for(const [val,lbl] of _EDGE_VOICES){ const o=document.createElement('option'); o.value=val; o.textContent=lbl; if(val===cur)o.selected=true; vs.appendChild(o); }
+    vs.onchange=()=>setTtsProvider('edge',{voice:vs.value});
+    const pv=document.createElement('div'); pv.className='langbtn'; pv.style.cssText='flex:0 0 auto;white-space:nowrap;padding:7px 11px;cursor:pointer';
+    pv.textContent=_K('▶ 듣기','▶ Play'); let busy=false;
+    pv.onclick=async()=>{ if(busy)return; busy=true; const o0=pv.textContent; pv.textContent=_K('합성 중…','…');
+      try{ const r=await fetch(TTS+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({text:_K('안녕! 나는 여름이야. 이 목소리 어때?','Hi, I am Yeoreum. How does this voice sound?'),speaker:vs.value})});
+        if(r.ok){ const u=URL.createObjectURL(await r.blob()); const a=new Audio(u); a.onended=()=>URL.revokeObjectURL(u); a.play().catch(()=>{}); } }catch(e){}
+      pv.textContent=o0; busy=false; };
+    row.appendChild(vs); row.appendChild(pv); d.appendChild(row);
+    const note=document.createElement('div'); note.className='lbl'; note.style.opacity='.7'; note.style.marginTop='4px';
+    note.textContent=_K('무료·키 불필요 · 클라우드(텍스트가 MS로 전송됨)','Free · no key · cloud (text sent to MS)');
+    d.appendChild(note);
   }
+  // 대사 속도 — 프로바이더별 파라미터 매핑(edge=rate '+N%', melo/qwen=speed 배수). 큰 값 = 빠름.
+  if(['edge','melo','qwen'].includes(data.active)){
+    const s=data.settings||{}; let cur=1.0;
+    if(data.active==='edge'){ const m=/([+-]?\d+)\s*%/.exec(s.rate||''); if(m)cur=1+(+m[1])/100; }
+    else if(s.speed)cur=+s.speed;
+    const opts=[0.8,0.9,1.0,1.1,1.2,1.3,1.5];
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;margin-top:8px;align-items:center';
+    const lb=document.createElement('span'); lb.className='lbl'; lb.textContent=_K('대사 속도','Speech speed'); lb.style.cssText='opacity:.85;white-space:nowrap';
+    const sel=document.createElement('select'); sel.className='micsel'; sel.style.flex='1'; let matched=false;
+    for(const v of opts){ const o=document.createElement('option'); o.value=v; o.textContent=v+'×'+(v===1?' ('+_K('기본','default')+')':''); if(Math.abs(v-cur)<0.03){o.selected=true;matched=true;} sel.appendChild(o); }
+    if(!matched){ const o=document.createElement('option'); o.value=cur; o.textContent=cur+'×'; o.selected=true; sel.appendChild(o); }
+    sel.onchange=()=>{ const v=+sel.value;
+      const st = data.active==='edge' ? {rate:((v-1)>=0?'+':'')+Math.round((v-1)*100)+'%'} : {speed:v};
+      setTtsProvider(data.active, st); };
+    row.appendChild(lb); row.appendChild(sel); d.appendChild(row);
+  }
+  await buildFillerUI(d);                           // 필러(시간벌기) 합성 섹션 — 모든 엔진 공통
   if(data.active==='qwen') await buildCloneUI(d);   // qwen 음성 클로닝 섹션
+}
+// 필러 설정: 기본 문구로 입력칸 프리필 → 사용자 편집 → 현재 목소리로 합성(진행 폴링)
+async function buildFillerUI(d){
+  let s; try{ s=await (await fetch(TTS+'/fillers',{cache:'no-store'})).json(); }catch(e){ return; }
+  const box=document.createElement('div'); box.style.cssText='margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:9px';
+  const hd=document.createElement('div'); hd.className='lbl';
+  const cnt=(s.ready||[]).length;
+  hd.textContent=_K('필러(시간벌기) 합성','Filler (buy-time) synthesis')
+    +(s.configured?(s.building?_K(' · 합성 중…',' · building…'):_K(' · 준비됨 '+cnt,' · ready '+cnt)):'');
+  box.appendChild(hd);
+  // on/off 토글 — 빠른 엔진(edge 등)에선 꺼두면 됨(합성 빨라 필러 불필요)
+  const tog=document.createElement('div'); tog.style.cssText='display:flex;gap:8px;margin-top:5px;align-items:center';
+  const tb=document.createElement('div'); tb.className='langbtn'; tb.style.cssText='cursor:pointer;padding:5px 11px';
+  const setTb=(v)=>{ tb.textContent=(v?_K('● 필러 켜짐','● Fillers ON'):_K('○ 필러 꺼짐','○ Fillers OFF'));
+    tb.style.borderColor=v?'var(--ok,#4caf50)':'var(--line)'; tb.style.color=v?'var(--ok,#4caf50)':'var(--dim)'; };
+  let curEn=s.enabled!==false; setTb(curEn);
+  tb.onclick=async()=>{ curEn=!curEn; setTb(curEn);
+    try{ await fetch(TTS+'/fillers/enabled',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:curEn})}); }catch(e){}
+    refreshTtsRuntime(); };
+  tog.appendChild(tb); box.appendChild(tog);
+  const note=document.createElement('div'); note.className='lbl'; note.style.cssText='opacity:.7;margin:3px 0 6px';
+  note.textContent=_K('합성 지연을 덮는 짧은 필러를 현재 목소리로 미리 만들어 둡니다. 문구는 수정 가능.',
+                      'Short fillers pre-made in the current voice to cover synthesis latency. Phrases editable.');
+  box.appendChild(note);
+  const rows={};
+  for(const [id,text] of Object.entries(s.phrases||{})){
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:6px;margin-top:4px;align-items:center';
+    const tag=document.createElement('span'); tag.textContent=id; tag.style.cssText='width:24px;font-size:11px;opacity:.55';
+    const inp=document.createElement('input'); inp.className='micsel'; inp.style.flex='1'; inp.value=text;
+    rows[id]=inp; row.appendChild(tag); row.appendChild(inp); box.appendChild(row);
+  }
+  const brow=document.createElement('div'); brow.style.cssText='display:flex;gap:6px;margin-top:7px;align-items:center';
+  const btn=document.createElement('div'); btn.className='langbtn'; btn.style.flex='1';
+  btn.textContent=_K('현재 목소리로 합성','Synthesize in current voice');
+  const stat=document.createElement('div'); stat.className='lbl'; stat.style.cssText='margin-top:4px;opacity:.85';
+  btn.onclick=async()=>{
+    const ph={}; for(const [id,inp] of Object.entries(rows)){ const v=inp.value.trim(); if(v)ph[id]=v; }
+    if(!Object.keys(ph).length){ stat.textContent=_K('문구를 입력하세요','enter phrases'); return; }
+    btn.style.pointerEvents='none'; btn.style.opacity='.6'; stat.textContent=_K('합성 시작…','starting…');
+    try{ await fetch(TTS+'/fillers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phrases:ph,tiers:s.tiers})}); }
+    catch(e){ stat.textContent=_K('요청 실패','request failed'); btn.style.pointerEvents=''; btn.style.opacity=''; return; }
+    const total=Object.keys(ph).length;
+    const poll=async()=>{ let r; try{ r=await (await fetch(TTS+'/fillers',{cache:'no-store'})).json(); }catch(e){ return setTimeout(poll,1500); }
+      const rc=(r.ready||[]).length;
+      stat.textContent=r.building?_K(`합성 중… (${rc}/${total})`,`building… (${rc}/${total})`):_K(`✓ 완료 (${rc})`,`✓ done (${rc})`);
+      if(r.building){ setTimeout(poll,1500); } else { btn.style.pointerEvents=''; btn.style.opacity=''; appendCmd(_K('🗣 필러 합성 완료','🗣 fillers ready')); refreshTtsRuntime(); }
+    }; setTimeout(poll,1000);
+  };
+  brow.appendChild(btn);
+  if(cnt){ const pv=document.createElement('div'); pv.className='langbtn'; pv.textContent=_K('▶ 듣기','▶ play');
+    pv.onclick=()=>{ new Audio(TTS+'/filler?id='+s.ready[0]+'&n='+Date.now()).play().catch(()=>{}); }; brow.appendChild(pv); }
+  box.appendChild(brow); box.appendChild(stat); d.appendChild(box);
+  // 메뉴가 열려있는 동안 헤더 상태 자동 갱신 — 빌드가 느리거나 실패해도 '합성 중'에 고착 안 되게(상한 ~3분)
+  if(s.building){ let n=0; const tick=async()=>{ if(!document.body.contains(box))return;
+    if(n++>90){ hd.textContent=_K('필러(시간벌기) 합성 · 지연/중단','Filler synthesis · stalled'); return; }
+    let r; try{ r=await (await fetch(TTS+'/fillers',{cache:'no-store'})).json(); }catch(e){ return setTimeout(tick,2500); }
+    const rc=(r.ready||[]).length;
+    hd.textContent=_K('필러(시간벌기) 합성','Filler (buy-time) synthesis')
+      +(r.configured?(r.building?_K(` · 합성 중… (${rc})`,` · building… (${rc})`)
+        :(rc?_K(' · 준비됨 '+rc,' · ready '+rc):_K(' · 실패 — 재합성 필요',' · failed — retry'))):'');
+    if(r.building) setTimeout(tick,2500);
+  }; setTimeout(tick,2500); }
+}
+// 인앱 설치: /install 호출 → /install/status 폴링 → 완료 시 메뉴 갱신
+async function installProvider(name, statusEl, btn){
+  if(btn){ btn.style.pointerEvents='none'; btn.style.opacity='.6'; }
+  const log=document.createElement('pre');
+  log.style.cssText='margin-top:6px;max-height:150px;overflow:auto;background:var(--bg2,#111);border:1px solid var(--line);border-radius:7px;padding:6px;font-size:10px;white-space:pre-wrap;line-height:1.35';
+  log.textContent=_K('설치 시작…','Starting install…'); statusEl.appendChild(log);
+  try{ await fetch(TTS+'/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}); }
+  catch(e){ log.textContent=_K('설치 요청 실패(TTS 서버 확인)','install request failed'); return; }
+  const poll=async()=>{
+    let s; try{ s=await (await fetch(TTS+'/install/status',{cache:'no-store'})).json(); }catch(e){ return setTimeout(poll,1500); }
+    log.textContent=(s.log||[]).join('\n'); log.scrollTop=log.scrollHeight;
+    if(s.running){ setTimeout(poll,1500); return; }
+    if(s.done){
+      appendCmd(s.ok?_K('✅ '+name+' 설치 완료','✅ '+name+' installed')
+                   :_K('❌ '+name+' 설치 실패(로그 확인)','❌ '+name+' install failed (see log)'));
+      if(s.ok) setTimeout(buildTtsMenu,600);   // 상태 갱신(설치됨/준비됨)
+    }
+  };
+  setTimeout(poll,1200);
 }
 async function buildCloneUI(d){
   let st={}; try{ st=await (await fetch(TTS+'/clone/status',{cache:'no-store'})).json(); }catch(e){}
@@ -653,6 +880,7 @@ async function setTtsProvider(name, settings){
     const r=await (await fetch(TTS+'/provider',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
     appendCmd('🔊 '+_K('음성 엔진 → ','Voice engine → ')+name+(r.ready?'':_K(' (설정 필요)',' (needs setup)')));
   }catch(e){ appendCmd('🔊 '+_K('엔진 전환 실패','engine switch failed')); }
+  refreshTtsRuntime();            // 새 엔진의 지연 추정 + 필러 준비상태 갱신
   buildTtsMenu();
 }
 try{ navigator.mediaDevices.addEventListener('devicechange',()=>buildMicMenu()); }catch(e){}
@@ -738,9 +966,15 @@ function sendChat(){ const inp=$('chatInput'); const t=inp.value.trim(); if(!t)r
   if(t.startsWith('/')) appendCmd(t); else appendUser(t); sendToBridge(t); }
 
 // ── 이스터에그: 퍼포먼스 플레이어 ──
+// 감정 미리보기 큐: 각 감정을 끝까지 재생 → 바로 다음(씹힘·끊김 없이 순차). 큐 비면 정면 idle 복귀.
+let _emoQ=[], _emoDraining=false;
+async function _drainEmo(){ _emoDraining=true;
+  while(_emoQ.length){ const s=_emoQ.shift(); setBadge(s.emotion,s.intensity); setState('speaking');
+    await playOnceAsync(s.name); }        // 끝날 때까지 대기 후 다음
+  _emoDraining=false; idleFront(); }        // 큐 비면 정면(settle)에서 idle 복귀
 function previewSeg(s,el){ document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on')); el&&el.classList.add('on');
-  if(s.kind==='loop'||s.group==='alive'){ loopSeg(s.name); setBadge(s.emotion,s.intensity); }
-  else { setBadge(s.emotion,s.intensity); playOnceAsync(s.name).then(()=>loopSeg(idleBase())); } }
+  if(s.kind==='loop'||s.group==='alive'){ loopSeg(s.name); setBadge(s.emotion,s.intensity); return; }
+  _emoQ.push(s); if(!_emoDraining) _drainEmo(); }   // 큐잉: 진행 중이면 끝나고 이어서
 function buildPerf(){ const g=$('segGrid'); if(!g||g.childElementCount)return; $('segCount').textContent='('+SEGS.length+')';
   const order={transition:0,loop:1}; const list=[...SEGS].sort((a,b)=>(order[a.kind]??2)-(order[b.kind]??2)||a.name.localeCompare(b.name));
   for(const s of list){ const c=document.createElement('div'); c.className='chip '+(s.group==='alive'?'alive':(s.kind==='loop'?'loop':''));
@@ -750,13 +984,28 @@ function buildPerf(){ const g=$('segGrid'); if(!g||g.childElementCount)return; $
   const h=$('perfHints'); hints.forEach(x=>{ const s=document.createElement('span'); s.textContent=x; s.onclick=()=>{$('perfIn').value=x;}; h.appendChild(s); }); }
 function openPerf(){ buildPerf(); $('perf').classList.add('show'); setTimeout(()=>$('perfIn')?.focus(),150); }
 function closePerf(){ $('perf').classList.remove('show'); }
+// 감정 피커(#perf .box) 상단바 드래그로 이동 — 아바타 안 가리게 옆으로 치워두고 트리거/확인
+(function(){ const box=$('perf')&&$('perf').querySelector('.box'), top=box&&box.querySelector('.top'); if(!top)return;
+  let dx=0,dy=0,drag=false;
+  top.addEventListener('mousedown',e=>{ if(e.target.classList.contains('x'))return;
+    const r=box.getBoundingClientRect(); box.style.left=r.left+'px'; box.style.top=r.top+'px'; box.style.bottom='auto';
+    dx=e.clientX-r.left; dy=e.clientY-r.top; drag=true; e.preventDefault(); });
+  addEventListener('mousemove',e=>{ if(!drag)return;
+    box.style.left=Math.max(0,Math.min(e.clientX-dx,innerWidth-60))+'px';
+    box.style.top=Math.max(0,Math.min(e.clientY-dy,innerHeight-40))+'px'; });
+  addEventListener('mouseup',()=>drag=false);
+})();
 async function runPerf(){ const t=$('perfIn').value.trim(); if(!t)return; closePerf();
   try{ await fetch(BRIDGE+'/hermes/out',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})}); }
   catch(e){ appendAgent(t('bridge_off_parse')); } }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePerf(); });
-function toggleSkills(){ const m=$('skillmenu'); if(m.style.display==='block'){ m.style.display='none'; return; }
-  m.innerHTML=''; SKILLS.forEach(s=>{ const d=document.createElement('div'); d.textContent=s; d.onclick=()=>{ $('chatInput').value=s+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
+function renderSkills(filter){ const m=$('skillmenu'); const f=(filter||'').toLowerCase();
+  const list=SKILLS.filter(s=>s.toLowerCase().startsWith(f));
+  if(!list.length){ m.style.display='none'; return; }
+  m.innerHTML=''; list.forEach(s=>{ const d=document.createElement('div'); d.textContent=s;
+    d.onclick=()=>{ $('chatInput').value=s+' '; $('chatInput').focus(); m.style.display='none'; }; m.appendChild(d); });
   m.style.display='block'; }
+function toggleSkills(){ const m=$('skillmenu'); if(m.style.display==='block'){ m.style.display='none'; return; } renderSkills(''); }
 $('fileInput')?.addEventListener('change',e=>{ for(const f of e.target.files){ const n=document.createElement('div'); n.className='file'; n.innerHTML=`<span class="ic">📎</span><span class="fn">${f.name}</span><span style="margin-left:auto;color:var(--dim);font-size:11px">${(f.size/1024).toFixed(0)}KB</span>`; addRow('u',n); sendToBridge('[파일 첨부] '+f.name); } e.target.value=''; });
 
 async function boot(){
@@ -767,16 +1016,23 @@ async function boot(){
         if(s.tier==='mood_variant'&&s.mood){ (byEmoMood[s.emotion]=byEmoMood[s.emotion]||{})[s.mood]=s; }
         else if(!byEmotion[s.emotion]) byEmotion[s.emotion]=s;
       }
-      if(s.settle_times&&s.settle_times.length) settleT[s.name]=s.settle_times; } }catch(e){}
-  $('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendChat(); } if(e.key==='/'&&!$('chatInput').value){ /* slash starts command */ } });
+      if(s.settle_times&&s.settle_times.length) settleT[s.name]=s.settle_times;
+      else if(s.settle_frames&&s.settle_frames.length&&s.fps) settleT[s.name]=s.settle_frames.map(f=>f/s.fps); } }catch(e){}
+  $('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendChat(); }
+    else if(e.key==='Escape'){ $('skillmenu').style.display='none'; } });
+  // 텔레그램식 슬래시 자동완성: '/'로 시작하고 공백 전까지 입력하면 목록을 접두어로 필터해서 띄운다.
+  $('chatInput').addEventListener('input',()=>{ const v=$('chatInput').value;
+    if(v.startsWith('/') && !v.includes(' ')) renderSkills(v); else $('skillmenu').style.display='none'; });
   document.addEventListener('click',e=>{ if(!e.target.closest('.skillmenu')&&!e.target.closest('[onclick*=toggleSkills]')) $('skillmenu').style.display='none';
     if(!e.target.closest('.thememenu')&&!e.target.closest('#themeBtn')) $('thememenu').classList.remove('show'); });
   try{ curLang=localStorage.getItem('avatarLang')||'ko'; }catch(e){}
   try{ applyTheme(localStorage.getItem('avatarTheme') || (PRESET&&PRESET.theme) || 'graphite'); }catch(e){ applyTheme('graphite'); }
+  try{ if(localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
   applyLang();
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
   idle();
+  refreshTtsRuntime();                                   // 필러 ETA/준비상태 초기 로드
   try{ const es=new EventSource(BRIDGE+'/events');
     es.onopen=()=>{ esConnected=true; pollStatus(); };
     es.onmessage=(e)=>{ try{ play(JSON.parse(e.data)); }catch(_){ } };

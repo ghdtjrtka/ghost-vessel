@@ -14,25 +14,26 @@ Keep the vocabulary in sync with parser.py KNOWN/ALIAS and the TAG/CODE/FILE reg
 # 올린다. 2026-07-06 전수 재태깅: 각 감정명 = 세그먼트가 실제로 보여주는 표정과 일치
 # (eyeshut→attentive, surprise(세그)→sheepish, ashamed→shy; 구명칭은 파서 별칭).
 # 서술은 육안 QA 스트립 기준 — LLM이 "무엇이 보일지" 알고 고르게 한다.
+# Gemini 생성 서브컬쳐 감정셋(2026-07-07 피봇). 각 감정명 = 화면에 실제로 보이는 표정.
+# build_contract(available)이 실제 manifest에 있는 것만 노출하므로, 영상이 채워질수록 자동 확장.
 EMOTION_GROUPS = [
     ("[긍정]", [
-        ("happy", "환한 기쁨"), ("smile", "잔잔한 미소"), ("laugh_big", "이 드러나는 활짝 웃음"),
-        ("excited", "눈 반짝이는 신남"), ("blissful", "흐뭇한 만족(눈웃음)"), ("amazed", "감탄(눈 커짐)"),
-        ("kissy", "입술 쪽"), ("wink", "윙크"), ("tongue", "메롱"), ("smug", "의기양양한 미소"),
-        ("smug_glance", "곁눈질하며 으쓱"), ("smirk", "씩- 장난기 미소"), ("shy", "눈 내리깔며 수줍은 배시시"),
-        ("attentive", "눈 크게 뜨고 초롱초롱 경청"),
+        ("smile", "잔잔한 미소"), ("laugh_big", "활짝 웃음(아하하)"), ("excited", "눈 반짝이는 신남"),
+        ("blissful", "흐뭇한 만족(눈웃음)"), ("shy", "눈 내리깔며 수줍은 배시시"), ("kissy", "입술 쪽·뽀뽀"),
+        ("wink", "윙크"), ("tongue", "혀 내밀고 윙크(테헤페로·장난)"), ("smirk", "씩- 장난기 미소"),
+        ("smug", "의기양양(도야)"), ("wave", "손 흔들며 인사(반가움)"),
+        ("dance", "신나서 들썩들썩 춤"), ("leaveitto", "가슴 툭 치며 자신만만(맡겨줘)"),
     ]),
     ("[중립·미묘]", [
-        ("neutral", "무표정"), ("curious", "살짝 궁금한 눈"), ("awkward_smile", "어색한 웃음"),
-        ("sheepish", "입 삐죽이며 딴청(머쓱)"), ("awkward", "당황"), ("skeptical", "갸웃(못 믿겠다는 눈)"),
-        ("surprise_big", "입 벌어지는 깜짝 놀람"), ("shocked", "흠칫(정색 놀람)"), ("sleepy", "눈꺼풀 스르르(나른)"),
+        ("neutral", "무표정"), ("curious", "고개 갸웃 호기심"), ("skeptical", "갸웃(못 믿겠다는 눈)"),
+        ("surprise_big", "입 벌어지는 깜짝 놀람"), ("pondering", "손끝 턱, 골똘히 생각(음~)"),
+        ("working", "안경 쓰고 노트에 필기(작업 중)"), ("reading", "돋보기로 자료 정밀 검토"),
+        ("searching", "두리번거리며 찾는 중(어디보자)"), ("stretch", "양팔 위로 기지개"),
+        ("tehe", "혀 쏙+머리 긁적(앗 실수·데헷)"),
     ]),
     ("[부정]", [
-        ("frown_subtle", "옅은 시무룩"), ("annoyed", "미간 살짝(짜증)"), ("pout", "입 오므린 삐짐"),
-        ("eyeroll", "눈 굴림(어이없음)"), ("exasperated", "시선 위로(기막힘)"), ("concerned", "걱정스런 눈"),
-        ("downcast", "시선 아래 시무룩"), ("distressed", "울상"), ("wince", "움찔(찔림)"), ("glare", "부릅뜬 응시"),
-        ("scowl", "찌푸림"), ("disgust", "질색"), ("forced_smile", "억지웃음"), ("angry", "볼 부풀린 화남"),
-        ("rage", "눈 부릅+볼빵빵 부글부글(최강)"),
+        ("pout", "입 오므린 뿌루퉁 삐짐"), ("annoyed", "반눈 뾰로통(지토메)"), ("distressed", "울먹(눈물)"),
+        ("sigh", "가볍게 한숨(하아, 지침·안도)"), ("crying", "엉엉 우는(과장된 만화식 눈물)"),
     ]),
 ]
 # 전체 감정 목록(파서/기본 규약용). Emotions parser.py can map to a segment.
@@ -40,12 +41,12 @@ EMOTIONS = [e for _grp, items in EMOTION_GROUPS for e, _d in items]
 
 # 상황별 추천(조건 → 후보 감정 우선순위). 채워진 감정만 규약에 노출한다.
 _SITUATIONAL = [
-    ("사용자가 말 시작하면", ["attentive"]),
-    ("칭찬받으면", ["shy", "excited", "happy"]),
-    ("실수했을 땐", ["sheepish", "awkward_smile"]),
-    ("자랑할 땐", ["smug", "smug_glance"]),
+    ("칭찬받으면", ["shy", "excited"]),
+    ("장난칠 땐", ["tongue", "wink", "smirk"]),
+    ("자랑할 땐", ["smug"]),
+    ("삐졌을 땐", ["pout", "annoyed"]),
 ]
-_FINE = ["annoyed", "curious", "smirk", "smug_glance", "frown_subtle", "shocked", "sheepish"]
+_FINE = ["smirk", "smug", "curious", "skeptical", "annoyed"]
 
 
 # 기본 설명/그룹 (표준 감정용 폴백) — 프리셋이 자기 값을 주면 그걸 우선한다.
@@ -105,6 +106,9 @@ def build_contract(available=None, axis=None, descriptions=None, labels=None):
 - 감정이 바뀌면 그 자리에서 태그를 바꿔 이어 붙인다(세밀할수록 자연스럽다):
   `[excited] 빌드 통과했어! [smug] 로그도 깨끗해.`
 - 세기: `[감정:0~1]` — 예: `[excited:0.9]`.
+- 태그 뒤에 **말을 안 붙이면 그 동작만 무음 제스처로 재생**된다. 그래서 말한 뒤 동작을
+  덧붙일 수 있다: `[happy] 오빠 됐어! [wave]` → 기뻐하며 말하고 손 흔들기(무음).
+  **감정만 · 동작만 · 감정+동작 조합 셋 다 가능**하고, 무엇을 쓸지는 네 선택이다(억지로 안 붙여도 됨).
 - **사용 가능한 감정은 아래 목록뿐이다. 목록에 없는 감정은 절대 쓰지 말 것**
   (없는 감정을 쓰면 아바타가 그 표정을 못 지어 무표정으로 남는다). 각 감정 옆은
   화면에 실제로 보이는 표정:

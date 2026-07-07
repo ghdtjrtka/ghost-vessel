@@ -21,9 +21,18 @@ localhost forwarding is asymmetric:
 Writes connector_config.json (avatar side) and, for hermes, GATEWAY_RELAY_URL
 into the gateway's ~/.hermes/.env (Windows path or inside WSL). Idempotent.
 
+Also injects, scoped to the avatar channel:
+  - the Avatar Output Contract (emotion/3-plane format) — auto-built from the
+    active preset's available emotions.
+  - the PERSONA (character) into the agent's SOUL.md — default name from the
+    preset (여름). `--name X` renames the persona to X and propagates it. An
+    existing hand-written SOUL.md (no managed marker) is kept unless --name is
+    given, so a user's custom persona (e.g. 미나미) is never silently clobbered.
+
 Usage:
   python setup_connector.py                         # interactive
   python setup_connector.py --agent hermes --agent-runtime windows
+  python setup_connector.py --agent hermes --agent-runtime windows --name 미나미
   python setup_connector.py --agent openclaw --agent-runtime wsl2 --dry-run
 """
 from __future__ import annotations
@@ -217,6 +226,67 @@ def write_openclaw_contract(dry: bool) -> str:
         return f"[!] could not write OpenClaw contract: {e}"
 
 
+# ── persona injection (name-driven; 설치 기본 = 프리셋 이름 '여름') ─────────────
+# 규약(출력형식)과 별개로, 캐릭터(페르소나)를 에이전트에 주입한다. 이름은 프리셋 name에서
+# 오고(기본 여름), --name 으로 바꾸면 그 이름으로 전파된다. 기존에 사용자가 손수 쓴
+# 커스텀 SOUL.md(우리 마커 없음)는 --name 없이는 덮지 않는다(사용자의 미나미 등 보호).
+_SOUL_MARK = "<!-- AVATAR_PERSONA (managed by setup_connector.py) -->"
+
+def _persona(name_override=None):
+    """(표시이름, SOUL 마크다운) — 활성 프리셋 role.md 기반. name_override로 이름 전파."""
+    import preset
+    cfg = preset.active() or {}
+    base_ko = cfg.get("name") or "여름"
+    base_en = cfg.get("name_en") or base_ko
+    name = ((name_override or base_ko).strip() or base_ko)
+    body = ""
+    try:
+        pid = preset.active_id()
+        rp = os.path.join(preset.PRESETS_DIR, pid, "role.md")
+        if os.path.isfile(rp):
+            body = open(rp, encoding="utf-8").read()
+        else:                                              # 단일 팩(.gvp) 프리셋
+            body = preset.pack_file("role.md").decode("utf-8")
+    except Exception:
+        body = ""
+    if name_override:                                      # 이름 전파: 프리셋 기본명 → 지정명
+        for base in (base_ko, base_en):
+            if base and base != name:
+                body = body.replace(base, name)
+    if not body:
+        body = f"# {name}\n\n(role.md를 찾지 못함 — 프리셋을 확인하세요.)\n"
+    return name, body
+
+def _write_persona_file(path, name, body, dry, label):
+    if dry:
+        return f"(dry-run) would write persona '{name}' → {path}"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    cur = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    if not os.path.exists(path + ".avatar-bak") and cur:
+        open(path + ".avatar-bak", "w", encoding="utf-8").write(cur)   # 원본 1회 백업
+    content = (f"{_SOUL_MARK}\n<!-- name={name} · 프리셋 role.md에서 생성 · 이름 변경은 "
+               f"preset.json name 또는 --name -->\n\n{body.strip()}\n")
+    open(path, "w", encoding="utf-8").write(content)
+    return f"wrote persona '{name}' → {path} (backup: {os.path.basename(path)}.avatar-bak)"
+
+def inject_persona(agent, runtime, name_override, dry):
+    name, body = _persona(name_override)
+    if agent == "hermes":
+        if runtime != "windows":
+            return "Hermes in WSL2 — run inside WSL to write SOUL.md (skipped)"
+        path = os.path.join(_hermes_home(), "SOUL.md")
+    else:
+        path = os.path.join(OPENCLAW_WORKSPACE, "SOUL.md")
+    # 보호: 기존 파일이 커스텀(우리 마커 없음)이고 --name 미지정이면 덮지 않음
+    if os.path.exists(path) and name_override is None:
+        try: cur = open(path, encoding="utf-8").read()
+        except Exception: cur = ""
+        if _SOUL_MARK not in cur:
+            return (f"기존 커스텀 페르소나 유지 → {path} "
+                    f"(신규 설치는 '{name}'로 자동 생성 · 덮으려면 --name)")
+    return _write_persona_file(path, name, body, dry, agent)
+
+
 # ── the plan ────────────────────────────────────────────────────────────────
 def compute(agent: str, runtime: str, cfg: dict) -> dict:
     port = int(cfg.get("relay", {}).get("port", 8901))
@@ -249,7 +319,7 @@ def compute(agent: str, runtime: str, cfg: dict) -> dict:
     return out
 
 
-def apply(agent: str, runtime: str, dry: bool) -> None:
+def apply(agent: str, runtime: str, dry: bool, name: str | None = None) -> None:
     cfg = load_cfg()
     plan = compute(agent, runtime, cfg)
     cfg["agent"] = agent
@@ -282,10 +352,12 @@ def apply(agent: str, runtime: str, dry: bool) -> None:
         # THE packaging point: activate relay + make the LLM follow the avatar
         # output format on the relay channel only (emotion beats / 3-plane).
         print(f"  [ok] config: {inject_hermes_hint(runtime, url, dry)}")
+        print(f"  [ok] persona: {inject_persona('hermes', runtime, name, dry)}")
         print("\n  Next: (re)start Hermes so it reads the env + prompt hint, and start the")
         print("        connector (relay_connector.py, or run start_avatar.bat).")
     else:
         print(f"  [ok] output-contract: {write_openclaw_contract(dry)}")
+        print(f"  [ok] persona: {inject_persona('openclaw', runtime, name, dry)}")
         print("\n  Next: start `openclaw gateway --port %d`, then start the connector" % OPENCLAW_DEFAULT_PORT)
         print("        (relay_connector.py / start_avatar.bat). The connector reads the")
         print("        gateway token from ~/.openclaw/openclaw.json automatically.")
@@ -308,6 +380,7 @@ def main():
     ap = argparse.ArgumentParser(description="Avatar connector setup")
     ap.add_argument("--agent", choices=["hermes", "openclaw"])
     ap.add_argument("--agent-runtime", choices=["windows", "wsl2"])
+    ap.add_argument("--name", help="아바타 이름 override (기본=프리셋 name '여름'). 지정 시 페르소나를 그 이름으로 재생성.")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -327,7 +400,7 @@ def main():
             else:
                 runtime = prompt_choice("2) Where does the agent run?", opts, "windows")
 
-    apply(agent, runtime, args.dry_run)
+    apply(agent, runtime, args.dry_run, args.name)
 
 
 if __name__ == "__main__":

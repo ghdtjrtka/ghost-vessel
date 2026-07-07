@@ -166,70 +166,64 @@ so the agent's vocabulary updates.
 
 ## 5. Producing the clips — full walkthrough
 
-You supply the assets; the engine just plays them. This section is a **complete,
-reproducible procedure** using only standard tools — follow it and you get a working
-preset. It uses **face reenactment**: one neutral still is animated by short driving
-performances, so every expression keeps the same identity/lighting/background.
+You supply the assets; the engine just plays them. This is a **complete, reproducible
+procedure** with standard tools. Every expression is generated from **one neutral still**,
+so identity / lighting / background stay consistent across the whole set.
 
 ### 5.0 Tools you need
-- **ComfyUI** + **ComfyUI-LivePortraitKJ** (Kijai) — the renderer. Use its **MediaPipe
-  cropper** path (`LivePortraitLoadMediaPipeCropper`); it needs no InsightFace/buffalo_l,
-  so there's no non-commercial-license issue.
-- **ffmpeg** — transcode + loop cutting.
-- A way to capture short **driving clips** (any front-facing video of a face making
-  each expression — a phone selfie works; you can use your own face as the driver).
+- An **image-to-video** model that preserves the subject's identity — e.g. **Google Veo /
+  Gemini**, or any i2v (Seedance, Kling, …). This is the recommended path: from your still
+  + a text prompt it produces genuinely *alive* motion (breathing, soft blinks, micro head
+  movement) that canned/parametric methods can't match.
+- **ffmpeg** — cut + transcode.
+- *Free / local alternative:* ComfyUI + LivePortrait can drive the still with reference
+  clips instead of an i2v model — heavier setup, no per-clip cost, same output shape
+  (one `<emotion>.mp4` per expression). The rest of this section applies either way.
 
 ### 5.1 The source still (`avatar/source.png`)
 The single most important asset — every expression inherits from it.
-- Neutral: eyes open, mouth closed, relaxed (the *expression* comes from driving later).
+- Neutral: eyes open, mouth closed, relaxed (the *expression* is added when you animate it).
 - Front-facing, head level; both eyes fully visible (bangs above the eyes).
 - Even neutral light on the face; no strong color cast / one-sided shadow.
 - Head + shoulders framing, high resolution; the background is baked in — use your final one.
 
-### 5.2 Driving clips — split your footage into one clip per emotion
-Your driving material is video of a face moving through expressions (record a session,
-or use existing footage). For each emotion you **cut a short window (~1–3 s) at the
-frames where that expression appears.** This per-emotion frame splitting is the judgment
-you make while reviewing the footage: scan it, and for each emotion pick the window where
-the expression reads cleanly — frontal, well-formed, with little head turn. Which frames
-map to which emotion is yours to choose; that selection is where the craft lives.
-- **Critical (relative-motion rule):** each cut must **start from a neutral, eyes-open
-  frame**. LivePortrait "relative" mode transfers the *delta from frame 0*; a clip that
-  starts already mid-expression transfers nothing (e.g. a window that starts eyes-closed
-  won't close the eyes). Cut so frame 0 is neutral, then the expression arrives.
-- Keep the head roughly frontal and steady. Big head turns get transferred onto your
-  still's fixed body and shear the neck — prefer low-yaw windows.
-- One neutral-start clip per emotion → feed each to the render below.
+### 5.2 Generate an expression video (i2v)
+Feed the still + a prompt asking for **several expressions in one ~10 s clip**, each rising
+from and returning to the **same neutral resting face** so each can later be cut into a loop.
+Prompt shape:
+> [the same person from the reference image], front-facing, static camera, alive throughout
+> (breathing, soft blinks, subtle head motion). Three expressions in sequence — **[A] then
+> back to neutral, [B] then back to neutral, [C] then back to neutral** — each understated
+> and natural; return to the SAME blank calm resting face between each.
+Notes:
+- The model **won't obey pacing exactly** — it may give a different count or timing than you
+  asked (and sometimes a bonus expression). That's fine; you find the real windows in §5.3.
+- Group emotions by register per clip (all sweet / all teasing / all sulky) so the flow reads
+  natural even where they blend.
+- Keep expressions **subtle** — a smile that's too wide or a pose that's too big reads off.
 
-### 5.3 Render one expression (LivePortrait graph)
-Wire this graph in ComfyUI (or POST the equivalent to the API):
-
+### 5.3 Cut into per-emotion loop segments
+Each emotion segment is `[neutral → expression → neutral]`, so it loops and the player can
+crossfade it against idle. Find each expression's real window with a **timestamped filmstrip**:
 ```
-DownloadAndLoadLivePortraitModels (precision auto, mode human)
-LivePortraitLoadMediaPipeCropper  (landmarkrunner CPU, keep_model_loaded)
-LoadImage        → your source.png
-VHS_LoadVideo    → the driving clip
-LivePortraitCropper   (source_image, cropper; dsize 512, scale 2.3, vx 0, vy -0.125,
-                       face_index 0, order large-small, rotate true)
-LivePortraitProcess   (source_image, crop_info, driving_images;
-                       stitching true, lip_zero false,
-                       relative_motion_mode "relative", delta_multiplier ~0.6–1.0,
-                       mismatch_method constant, driving_smooth 3e-6)
-LivePortraitComposite (source_image, cropped_image, liveportrait_out)
-VHS_VideoCombine      (h264-mp4, fps 24)
+# lay every 0.25s frame out with its timestamp burned in
+ffmpeg -y -i clip.mp4 -vf "fps=4,scale=200:-1,drawtext=fontfile=<path/to/font.ttf>:\
+  text='%{pts}':x=6:y=6:fontsize=22:fontcolor=yellow:box=1:boxcolor=black@0.7,\
+  tile=8x5" -frames:v 1 filmstrip.png
 ```
-- `delta_multiplier` scales expression strength — start ~0.8, lower it if the mouth/eyes
-  over-shoot, raise for stronger emotions. Tune per clip by eye.
-- Repeat for every emotion in your vocabulary → one mp4 each.
-
-### 5.4 Transcode for the browser
-Give the player faststart H.264 (yuv420p) copies:
+Read off where each expression sits, then cut each window (re-encoding makes the cut
+frame-accurate and browser-ready):
 ```
-ffmpeg -y -i in.mp4 -c:v libx264 -crf 23 -preset veryfast -pix_fmt yuv420p \
-       -movflags +faststart avatar/segments/web/<name>.mp4
+ffmpeg -y -ss <start> -t <dur> -i clip.mp4 -c:v libx264 -crf 20 -pix_fmt yuv420p \
+       -movflags +faststart -an avatar/segments/web/<emotion>.mp4
 ```
-Keep **the same resolution and aspect for every clip** — a differently-framed clip reads
-as a size jump when the avatar swaps emotion/mood.
+- Put the cut boundaries at the **low-motion (near-neutral) points** between expressions, so
+  each segment starts and ends calm and loops cleanly.
+- **Do NOT ping-pong emotion clips.** Playing an expression forward-then-reversed makes it
+  "un-happen" and looks unnatural. (Ping-pong is fine for *idle body* loops — see §5.5.)
+- Keep **the same resolution and aspect for every clip** — a differently-framed clip reads as
+  a size jump when the avatar swaps emotion/mood.
+- One mp4 per emotion, named `<emotion>.mp4` (the folder-drop convention, §0).
 
 ### 5.5 Idle & mood loops
 Idle/talking/mood clips are body-motion videos cut into **seamless loops**:
@@ -254,8 +248,8 @@ Idle/talking/mood clips are body-motion videos cut into **seamless loops**:
 4. Write `role.md` (persona / system prompt), add `cover.png` + `LICENSE`.
 
 Following 5.1–5.6 yields a **working preset**. Making the expressions look *effortlessly
-natural* — the exact driving material, per-emotion frame selection, fine emotion
-harvesting, and QA tuning we've accumulated — is where a commission saves you the work.
+natural* — the prompt craft, the emotion selection that reads on-camera, precise loop
+cutting, and the QA tuning we've accumulated — is where a commission saves you the work.
 
 ---
 

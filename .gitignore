@@ -15,7 +15,9 @@ vid/
 # EXPRESSION_CATALOG.md = frame-level emotion tagging of the driving clips.
 # The FORMAT is documented in docs/PRESET_FORMAT.md (public) instead.
 segments/render_recipe.json
-segments/manifest.json
+segments/expression_recipe.json
+segments/manifest.json*
+segments/*.bak
 EXPRESSION_CATALOG.md
 AVATAR_AGENT_SPEC.md
 tools/
@@ -29,7 +31,9 @@ tts/*.wav
 presets/mina-default/
 
 # ── local runtime / state / generated ──
+scratchpad/
 tts/venv/
+tts/engines/*-venv/
 stt/venv/
 **/__pycache__/
 *.log
@@ -42,3 +46,18 @@ dist/
 # ── OS noise ──
 Thumbs.db
 desktop.ini
+
+# distribution/landing site + board (deploy separately, not the engine)
+site/
+board/
+
+# ── desktop shell (Tauri) build artifacts + node tooling ──
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+
+# secrets — Cloudflare + Namecheap creds (NEVER commit)
+cf.txt
+
+# single-file avatar packs (creator assets — never commit)
+presets/*.gvp

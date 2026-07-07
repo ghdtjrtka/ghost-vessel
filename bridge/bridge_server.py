@@ -95,10 +95,10 @@ def config():
     try:
         with open(HERMES_SOUL, encoding="utf-8") as f:
             soul = f.read()
-        m = _re.search(r"이름:\*\*\s*([^\n(]+?)\s*(?:\(|$|\n)", soul)          # "- **이름:** 미나미 (Minami)"
+        m = _re.search(r"이름:\*\*\s*([^\n(]+?)\s*(?:\(|$|\n)", soul)          # "- **이름:** 여름 (Yeoreum)"
         if not m: m = _re.search(r"name:\*\*\s*([^\n(]+)", soul, _re.I)
         if m: name = m.group(1).strip()
-        h = _re.search(r"^#\s*(.+)$", soul, _re.M)                            # "# 미나미 (Minami) — ..."
+        h = _re.search(r"^#\s*(.+)$", soul, _re.M)                            # "# 여름 (Yeoreum) — ..."
         if h: title = h.group(1).split("—")[0].strip()
         if title and name == "Assistant": name = title.split("(")[0].strip()
     except Exception as e:
@@ -117,6 +117,18 @@ def preset():
 @app.route("/presets")
 def presets():
     return jsonify(active=PRE.active_id(), presets=PRE.list_presets())
+
+@app.route("/pack/<path:sub>")
+def pack_serve(sub):
+    # 단일 팩(.gvp) 아바타의 에셋을 메모리에서 서빙(source/manifest/emotion_map/web clips).
+    import mimetypes
+    data = PRE.pack_file(sub)
+    if data is None:
+        return ("not found", 404)
+    mt = mimetypes.guess_type(sub)[0] or "application/octet-stream"
+    resp = Response(data, mimetype=mt)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 @app.route("/preset/reload", methods=["POST", "OPTIONS"])
 def preset_reload():
@@ -210,6 +222,13 @@ def hermes_out():
     _seq += 1
     payload = P.parse(content, seq=_seq,
                       output_mode=body.get("output_mode", "both"))
+    # 진단 로그: LLM이 실제로 [emotion] 태그를 뱉는지 육안 확인용. 태그O = LLM이 직접 감정 출력,
+    # 태그X = 파서가 키워드/이모지로 추론(=LLM은 감정 데이터를 안 나눈 것). 원문 → 분리결과를 한 줄로.
+    _lead_tag = content.lstrip()[:1] == "["
+    _emos = [b.get("emotion") for b in payload.get("performance", {}).get("beats", [])]
+    _ndata = len(payload.get("data", []))
+    print(f"[hermes/out] 원문[{'태그O' if _lead_tag else '태그X→추론'}]: {content[:180]!r}"
+          f"  →  감정beats={_emos} · data평면={_ndata}건", flush=True)
     # agent beats color the mood; every performance carries the mood snapshot
     if MOOD:
         MOOD.on_beats(payload.get("dialogue", {}).get("beats"))
@@ -234,12 +253,13 @@ def hermes_in():
         if r:
             global _seq
             _seq += 1
+            re_emo = P.canon(r["emotion"]) or "neutral"   # 반응 감정명을 활성 taxonomy로 정규화(옛 이름 안전)
             publish({"session_id": "mood", "seq": _seq,
                      "dialogue": {"text": "", "beats": [
-                         {"emotion": r["emotion"], "text": "", "intensity": r["intensity"]}]},
+                         {"emotion": re_emo, "text": "", "intensity": r["intensity"]}]},
                      "data": [], "reaction": r["kind"],
-                     "performance": {"emotion": r["emotion"], "intensity": r["intensity"],
-                                     "beats": [{"emotion": r["emotion"], "intensity": r["intensity"]}]},
+                     "performance": {"emotion": re_emo, "intensity": r["intensity"],
+                                     "beats": [{"emotion": re_emo, "intensity": r["intensity"]}]},
                      "context": {"trigger_type": "user_reaction", "requires_confirmation": False},
                      "mood": MOOD.snapshot()})
     # REAL path: hand to the relay connector, which delivers it to the live agent

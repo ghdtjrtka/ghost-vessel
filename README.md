@@ -1,4 +1,4 @@
-# Ghost Vessel — give your local agent a face
+# Ghost Vessel — give your local agent a vessel
 
 > **Bind your local LLM agent (the *ghost*) into an avatar body (the *vessel*).**
 > A monitor-resident, video-call-style avatar that **fronts your personal AI agent**
@@ -29,8 +29,9 @@ video window ◄── performance player ◄── parser (3 planes) ◄─┘
 - **Agent-agnostic**: Hermes (relay connector contract, WS server) and OpenClaw
   (gateway WS client) adapters, plus a demo responder with zero setup. The agent is
   told only the emotions your avatar actually has, so partial avatars just work.
-- **Swappable voice**: local Qwen3-TTS by default (with voice cloning), or ElevenLabs /
-  any OpenAI-compatible / Piper — picked in settings. Voice input via VAD + local STT.
+- **Swappable voice**: local (Qwen3-TTS with voice cloning, MeloTTS, Piper) or cloud
+  (Edge — free & keyless, ElevenLabs, any OpenAI-compatible) — picked in settings, with
+  an in-app installer that surfaces each engine's deps. Voice input via VAD + local STT.
 
 ## Quickstart (Windows)
 
@@ -39,8 +40,11 @@ video window ◄── performance player ◄── parser (3 planes) ◄─┘
 3. Link your agent: `python bridge/setup_connector.py` (picks Hermes/OpenClaw,
    Windows/WSL2, writes the connection + injects the avatar output contract into the
    agent's prompt, scoped to this channel).
-4. Run the stack (TTS :8899 · bridge :8900 · connector :8901 · static :8777) and open
-   `http://127.0.0.1:8777/player/index.html`. On Windows: `windows\start_avatar.bat`.
+4. Run the stack — TTS (:8899), bridge (:8900), connector (:8901), and a static server for
+   the player (`python -m http.server 8777`). Then either open
+   `http://127.0.0.1:8777/player/index.html` in a browser, **or** run the desktop shell
+   (`cd src-tauri && cargo tauri dev`) for a frameless, always-on-top avatar window.
+   (Each component is a small local server — wire up a launch script for your own setup.)
 
 ## Avatars (presets)
 
@@ -49,10 +53,11 @@ no code runs, so installing one is safe. Presets are **folder-mapped**: drop a f
 of clips named by convention (`happy.mp4`, `angry.mp4`, `idle.mp4`, …) into `presets/`
 and the engine maps them automatically — the folder name is the avatar's name.
 
-- **Get the demo avatar (Minami)** — pay-what-you-want (min $1) download. *(link)*
+- **Get the demo avatar (Yeoreum)** — pay-what-you-want (min $1) download. *(link)*
 - **Commission a custom avatar** — made to order. *(contact)*
-- **Make your own** — the full, reproducible build method (source still → LivePortrait
-  face-reenactment → idle loops → package) and the bundle/filename spec are in
+- **Make your own** — the full, reproducible build method (neutral still → image-to-video
+  expressions → loop-cut segments → package; LivePortrait works as a free local alternative)
+  and the bundle/filename spec are in
   [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md). Keep it SFW; own your likeness rights.
 
 The repo ships **engine only** — no avatar bundled (`presets/_template/` is a starter

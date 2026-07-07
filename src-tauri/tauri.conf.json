@@ -1,0 +1,49 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Ghost Vessel",
+  "version": "0.1.0",
+  "identifier": "space.ghostvessel.app",
+  "build": {
+    "frontendDist": "../player",
+    "devUrl": "http://127.0.0.1:8777/player/index.html",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Ghost Vessel",
+        "url": "http://127.0.0.1:8777/player/index.html",
+        "width": 480,
+        "height": 760,
+        "minWidth": 320,
+        "minHeight": 420,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "shadow": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}
