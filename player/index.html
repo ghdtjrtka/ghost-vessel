@@ -785,8 +785,9 @@ const _TTS_DESC={ qwen:_K('로컬·클로닝(기본)','Local · cloning (default
   piper:_K('초경량 로컬·실시간(클로닝 없음)','Ultra-light local · realtime (no cloning)'),
   edge:_K('무료 클라우드·키 없음·한국어 우수(MS)','Free cloud · no key · great Korean (MS)'),
   melo:_K('로컬·CPU·다국어(오프라인)','Local · CPU · multilingual (offline)') };
-const _EDGE_VOICES=[['ko-KR-SunHiNeural','한국어 여 (SunHi)'],['ko-KR-JiMinNeural','한국어 여 (JiMin)'],
-  ['ko-KR-YuJinNeural','한국어 여 (YuJin)'],['ko-KR-SeoHyeonNeural','한국어 여 (SeoHyeon)'],
+// MS Edge 무료 TTS에서 현재 유효한 보이스만 (JiMin/YuJin/SeoHyeon은 폐기됨 → "No audio").
+const _EDGE_VOICES=[['ko-KR-SunHiNeural','한국어 여 (SunHi)'],['ko-KR-InJoonNeural','한국어 남 (InJoon)'],
+  ['ko-KR-HyunsuMultilingualNeural','한국어 남·다국어 (Hyunsu)'],
   ['ja-JP-NanamiNeural','일본어 여 (Nanami)'],['en-US-AvaNeural','영어 여 (Ava)']];
 async function buildTtsMenu(){
   const m=$('thememenu'); if(!m||!m.childElementCount) return;
