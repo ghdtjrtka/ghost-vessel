@@ -526,7 +526,8 @@ async function agentCtl(op){
   setTimeout(pollStatus,2000); setTimeout(pollStatus,15000);   // 부팅 완료 재확인
 }
 function setBadge(emo,inten){ if(!emo||emo==='neutral'){ $('badge').style.display='none'; return;}
-  const lbl=(PRESET&&PRESET.emotion&&PRESET.emotion.labels&&PRESET.emotion.labels[emo])||emo;   // 프리셋 라벨(한글)
+  // 프리셋 라벨은 한글 — EN UI에선 감정 원명(wave/working…)을 그대로 노출
+  const lbl=curLang==='en' ? emo : ((PRESET&&PRESET.emotion&&PRESET.emotion.labels&&PRESET.emotion.labels[emo])||emo);
   $('badge').style.display='block'; $('badge').innerHTML=`<b>${esc(lbl)}</b> · ${esc(inten??'')}`; }
 
 // ── 대화 로그 (스크롤) ──
