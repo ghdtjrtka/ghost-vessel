@@ -14,7 +14,11 @@ is not native to Hermes). Swap /hermes/out's caller with the real relay WS
 connector (gateway dials it, delivers `send{content,metadata}`) — the parse+push
 core stays identical.
 """
-import json, queue, threading, time, os, re, uuid
+import json, queue, threading, time, os, re, sys, uuid
+# cp949 콘솔에서 진단 print의 유니코드(✓·이모지 등)가 UnicodeEncodeError→500이 되는 것 방지
+for _s in (sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass
 from flask import Flask, request, jsonify, Response, send_file
 import parser as P
 import preset as PRE
