@@ -910,7 +910,7 @@ async function buildFillerUI(d){
   const setTb=(v)=>{ tb.textContent=(v?_K('● 필러 켜짐','● Fillers ON'):_K('○ 필러 꺼짐','○ Fillers OFF'));
     tb.style.borderColor=v?'var(--ok,#4caf50)':'var(--line)'; tb.style.color=v?'var(--ok,#4caf50)':'var(--dim)'; };
   let curEn=s.enabled!==false; setTb(curEn);
-  tb.onclick=async()=>{ curEn=!curEn; setTb(curEn);
+  tb.onclick=async()=>{ curEn=!curEn; setTb(curEn); FILLER.enabled=curEn;   // 로컬 게이트 즉시 반영(refresh 비동기 레이스 방지)
     try{ await fetch(TTS+'/fillers/enabled',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:curEn})}); }catch(e){}
     refreshTtsRuntime(); };
   tog.appendChild(tb); box.appendChild(tog);
