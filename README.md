@@ -15,7 +15,7 @@ clips**, so the GPU stays free at runtime (no live inference).
 
 ▶ **[Watch the demo](https://github.com/ghdtjrtka/ghost-vessel/releases/download/v0.1.0/GhostVessel-demo-EN.mp4)** — emotion beats, the real Hermes slash menu, work loops, code cards, human-in-the-loop approval, and the floating monitor-resident windows.
 
-📦 **[Download for Windows](https://github.com/ghdtjrtka/ghost-vessel/releases/latest/download/GhostVessel-Yeoreum.zip)** — dependency-free (no Python). Lifetime keys at [ghostvessel.space](https://ghostvessel.space).
+📦 **[Download for Windows](https://ghostvessel.space)** — dependency-free (no Python). Pay-what-you-want lifetime key (package from $5, preset from $1) at [ghostvessel.space](https://ghostvessel.space).
 
 ## How it works
 
@@ -65,8 +65,8 @@ no code runs, so installing one is safe. Presets are **folder-mapped**: drop a f
 of clips named by convention (`happy.mp4`, `angry.mp4`, `idle.mp4`, …) into `presets/`
 and the engine maps them automatically — the folder name is the avatar's name.
 
-- **Get the demo avatar (Yeoreum)** — pay-what-you-want (min $1) download. *(link)*
-- **Commission a custom avatar** — made to order. *(contact)*
+- **Get the demo avatar (Yeoreum)** — pay-what-you-want: full package from $5, preset (.gvp) only from $1 — at [ghostvessel.space](https://ghostvessel.space).
+- **Commission a custom avatar** — made to order: open an issue or ask at [ghostvessel.space](https://ghostvessel.space).
 - **Make your own** — the full, reproducible build method (neutral still → image-to-video
   expressions → loop-cut segments → package; LivePortrait works as a free local alternative)
   and the bundle/filename spec are in
