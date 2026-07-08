@@ -72,6 +72,27 @@ def health():
     return jsonify(ok=True, provider=p.name, loaded=p.ready(), ready=p.ready(),
                    cloning=p.cloning, model=p.cfg.get("model") or p.cfg.get("voice_id") or p.name)
 
+@app.route("/probe", methods=["POST", "OPTIONS"])
+def probe():
+    """실합성 프로브 — ready()의 import 체크가 아니라, 활성 엔진·현재 설정(보이스/속도)으로
+    실제 1회 합성해 동작을 증명한다. 설정 저장 직후 상태등을 켜는 근거."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    prov = _active
+    t0 = time.time()
+    try:
+        if prov.serialize:
+            with _fifo():
+                audio, _mt = prov.synth("테스트", None, None)
+        else:
+            audio, _mt = prov.synth("테스트", None, None)
+        if not audio:
+            return jsonify(ok=False, provider=prov.name, error="no audio"), 502
+        return jsonify(ok=True, provider=prov.name, ms=int((time.time() - t0) * 1000),
+                       bytes=len(audio))
+    except Exception as e:
+        return jsonify(ok=False, provider=prov.name, error=str(e)[:200]), 502
+
 @app.route("/providers")
 def providers_list():
     # active provider의 설정도 함께 반환(UI가 현재 보이스 등을 표시). cfg엔 키 '값'이 아니라
@@ -381,6 +402,8 @@ def tts():
     text = (data.get("text") or "").strip()
     if not text:
         return jsonify(error="empty text"), 400
+    if len(text) > 2000:                             # [G2] TTS 텍스트 길이 상한: OOM/행 방지
+        return jsonify(error="text too long (max 2000 chars)"), 400
     speaker = data.get("speaker") or None
     language = data.get("language") or None
     prov = _active

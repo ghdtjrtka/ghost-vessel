@@ -142,7 +142,8 @@ def _auto_manifest(pid):
     if not segdir:
         return None, None
     clips = sorted(f for f in os.listdir(segdir) if f.lower().endswith(".mp4"))
-    sig = tuple(clips)                                   # 파일 목록이 바뀌면 재생성
+    # 파일 목록 + mtime으로 캐시 키 구성 — 같은 이름의 클립을 교체해도 갱신됨
+    sig = tuple((f, os.path.getmtime(os.path.join(segdir, f))) for f in clips)
     cached = _manifest_cache.get(pid)
     if cached and cached[0] == sig:
         return cached[1], segurl
@@ -179,7 +180,8 @@ def _resolve_manifest(pid, m):
 
 def _default_emotion_map():
     try:
-        return json.load(open(os.path.join(PRESETS_DIR, "_template", "emotion_map.json"), encoding="utf-8"))
+        with open(os.path.join(PRESETS_DIR, "_template", "emotion_map.json"), encoding="utf-8") as f:
+            return json.load(f)
     except Exception:
         return {}
 
@@ -199,7 +201,8 @@ def list_presets():
         disp, sfw = name, True
         if has_json:
             try:
-                mj = json.load(open(os.path.join(pdir, "preset.json"), encoding="utf-8"))
+                with open(os.path.join(pdir, "preset.json"), encoding="utf-8") as f:
+                    mj = json.load(f)
                 disp = mj.get("name", name); sfw = mj.get("sfw", True)
             except Exception:
                 pass
@@ -245,7 +248,9 @@ def load(pid=None):
     m = {}
     pj = os.path.join(pdir, "preset.json")
     if os.path.isfile(pj):
-        try: m = json.load(open(pj, encoding="utf-8"))
+        try:
+            with open(pj, encoding="utf-8") as f:
+                m = json.load(f)
         except Exception: m = {}
     # emotion map: 명시 파일 > preset.json 인라인 > 프리셋 내 emotion_map.json > 내장 기본
     emo = {}
@@ -255,7 +260,9 @@ def load(pid=None):
     else:
         for cand in ([emo_ref] if isinstance(emo_ref, str) else []) + ["emotion_map.json"]:
             try:
-                emo = json.load(open(os.path.join(pdir, cand), encoding="utf-8")); break
+                with open(os.path.join(pdir, cand), encoding="utf-8") as f:
+                    emo = json.load(f)
+                break
             except Exception:
                 continue
     if not emo:
@@ -315,7 +322,8 @@ def available_emotions(pid=None):
         if raw:                                         # 명시 매니페스트 파일
             p = os.path.join(ROOT, raw.lstrip("/").replace("/", os.sep)) if raw.startswith("/") \
                 else os.path.join(PRESETS_DIR, pid, raw.replace("/", os.sep))
-            man = json.load(open(p, encoding="utf-8"))
+            with open(p, encoding="utf-8") as f:
+                man = json.load(f)
         else:                                           # 자동
             man, _ = _auto_manifest(pid)
         emos = {s.get("emotion") for s in (man or {}).get("segments", [])

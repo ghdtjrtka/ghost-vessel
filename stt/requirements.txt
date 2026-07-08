@@ -1,0 +1,12 @@
+# stt 서비스 의존성
+# pip install -r stt/requirements.txt
+
+flask>=3.0
+werkzeug>=3.0
+
+# ── 음성 인식 모델 (선택) ────────────────────────────────
+# faster-whisper (CPU int8 또는 CUDA float16, 권장):
+#   pip install faster-whisper
+#
+# 첫 실행 시 모델 자동 다운로드 (STT_MODEL=small 기준 ~250MB)
+# GPU 사용: 환경변수 STT_DEVICE=cuda 설정

@@ -19,8 +19,6 @@ All tunables come from the active preset's emotion_map.json:
 from __future__ import annotations
 import json, os, re, time, threading
 
-_LOCK = threading.Lock()
-
 # ── praise / scold lexicon (Korean-first; deterministic & instant) ──────────
 PRAISE_STRONG = ["최고야","완벽해","천재","대박이다","진짜 잘했","감동이야","사랑해","짱이야","미쳤다 잘"]
 PRAISE_MILD   = ["잘했어","고마워","좋네","좋아요","굿","수고했","역시","맘에 들","괜찮네","잘하네","고맙"]
@@ -44,6 +42,7 @@ class MoodTracker:
         self.reactions = {**DEFAULT_REACTIONS, **(emo.get("reactions") or {})}
         self.bases = emo.get("bases", {}) or {}
         self.state_path = os.path.join(state_dir, "state.json")
+        self._lock = threading.Lock()  # 인스턴스별 독립 Lock (모듈 싱글턴 공유 제거)
         self.mood = 0.0        # short-term valence  [-1, 1]
         self.affinity = 0.0    # long-term baseline  [-1, 1]
         self._ts = time.time()
@@ -52,7 +51,8 @@ class MoodTracker:
     # ── persistence ─────────────────────────────────────────────────────
     def _load(self):
         try:
-            s = json.load(open(self.state_path, encoding="utf-8"))
+            with open(self.state_path, encoding="utf-8") as f:
+                s = json.load(f)
             self.mood = float(s.get("mood", 0.0))
             self.affinity = float(s.get("affinity", 0.0))
             self._ts = float(s.get("updated_at", time.time()))
@@ -61,9 +61,9 @@ class MoodTracker:
 
     def _save(self):
         try:
-            json.dump({"mood": round(self.mood, 4), "affinity": round(self.affinity, 4),
-                       "updated_at": time.time()},
-                      open(self.state_path, "w", encoding="utf-8"))
+            with open(self.state_path, "w", encoding="utf-8") as f:
+                json.dump({"mood": round(self.mood, 4), "affinity": round(self.affinity, 4),
+                           "updated_at": time.time()}, f)
         except Exception:
             pass
 
@@ -86,7 +86,7 @@ class MoodTracker:
     def on_user_message(self, text: str):
         """Instant reaction to the USER's words. Returns a reaction dict
         {emotion, intensity, kind} or None. Also nudges mood + affinity."""
-        with _LOCK:
+        with self._lock:
             self._decay()
             t = text or ""
             kind = None
@@ -108,7 +108,7 @@ class MoodTracker:
 
     def on_beats(self, beats):
         """Agent's own emotional beats color the mood (weaker than user signal)."""
-        with _LOCK:
+        with self._lock:
             self._decay()
             a = self.params["beat_ema_alpha"] * 0.5
             for b in beats or []:
@@ -125,7 +125,7 @@ class MoodTracker:
         return "neutral"
 
     def snapshot(self) -> dict:
-        with _LOCK:
+        with self._lock:
             self._decay()
             base = self.base()
             return {"mood": round(self.mood, 3), "affinity": round(self.affinity, 3),

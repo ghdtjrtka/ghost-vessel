@@ -23,6 +23,7 @@ AVATAR_AGENT_SPEC.md
 tools/
 docs/PRESET_BUILD.md
 tts/tts_config.json
+tts_config.json
 tts/voices/
 tts/test_out.wav
 tts/*.wav

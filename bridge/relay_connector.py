@@ -281,7 +281,7 @@ class OpenClawConnector:
         while True:
             try:
                 print(f"[relay:openclaw] dialing {url} (sessionKey={self.session_key}) …", flush=True)
-                async with websockets.connect(url, max_size=None) as ws:
+                async with websockets.connect(url, max_size=None, open_timeout=15) as ws:
                     self.ws = ws
                     await ws.send(json.dumps(self._connect_frame()))
                     while True:                                    # handshake

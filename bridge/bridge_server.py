@@ -14,7 +14,7 @@ is not native to Hermes). Swap /hermes/out's caller with the real relay WS
 connector (gateway dials it, delivers `send{content,metadata}`) — the parse+push
 core stays identical.
 """
-import json, queue, threading, time, os, re
+import json, queue, threading, time, os, re, uuid
 from flask import Flask, request, jsonify, Response, send_file
 import parser as P
 import preset as PRE
@@ -37,13 +37,18 @@ _subs = []            # list of Queue, one per SSE client
 _subs_lock = threading.Lock()
 _seq = 0
 _inbound = queue.Queue()
+_pending_confirms = {}   # {confirm_id: True} — 미해결 HITL 승인 대기 목록
 
 def publish(payload):
     data = "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
     with _subs_lock:
+        dead = []
         for q in list(_subs):
             try: q.put_nowait(data)
-            except Exception: pass
+            except queue.Full: dead.append(q)   # 소비 못 하는 dead 클라이언트 수집
+        for q in dead:                           # Lock 안에서 한 번에 정리
+            try: _subs.remove(q)
+            except ValueError: pass
 
 # 로컬 전용 서버 — 악성 웹페이지의 크로스사이트 접근(임의 파일 읽기·에이전트 제어) 차단.
 _LOCAL_ORIGIN = re.compile(r"^(https?://(127\.0\.0\.1|localhost|tauri\.localhost)(:\d+)?|tauri://localhost|file://|null)$", re.I)
@@ -144,7 +149,7 @@ def pack_serve(sub):
         return ("not found", 404)
     mt = mimetypes.guess_type(sub)[0] or "application/octet-stream"
     resp = Response(data, mimetype=mt)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
+    # CORS는 after_request cors() 훅이 allowlist 오리진만 반사 — 와일드카드(*) 제거
     return resp
 
 @app.route("/preset/reload", methods=["POST", "OPTIONS"])
@@ -201,11 +206,13 @@ _FALLBACK_COMMANDS = {
         {"cmd": "/agents",  "desc": "Show active agents"},
     ],
 }
-_cmd_cache = {}
+_cmd_cache: dict = {}   # {key: (ts, data)} — TTL-bounded
+_CMD_CACHE_TTL = 300    # 5분: Hermes 스킬 추가/제거 후 재기동 없이도 반영됨
 
 def _hermes_commands():
-    if "hermes" in _cmd_cache:
-        return _cmd_cache["hermes"]
+    entry = _cmd_cache.get("hermes")
+    if entry and time.time() - entry[0] < _CMD_CACHE_TTL:
+        return entry[1]
     try:
         home = os.path.join(os.environ.get("LOCALAPPDATA", ""), "hermes", "hermes-agent")
         py = os.path.join(home, "venv", "Scripts", "python.exe")
@@ -216,7 +223,7 @@ def _hermes_commands():
                                       stderr=subprocess.DEVNULL, creationflags=0x08000000)
         cmds = json.loads(out.decode("utf-8").strip().splitlines()[-1])
         if cmds:
-            _cmd_cache["hermes"] = cmds
+            _cmd_cache["hermes"] = (time.time(), cmds)
         return cmds
     except Exception as e:
         print("[bridge] hermes 명령 조회 실패, 폴백:", str(e)[:120], flush=True)
@@ -245,10 +252,13 @@ def status_all():
     tts = _probe("http://127.0.0.1:8899/health")
     stt = _probe("http://127.0.0.1:8898/health")
     conn = _probe(CONNECTOR_CTRL + "/status")
+    stt_alive = bool(stt)
+    stt_loaded = bool(stt and stt.get("loaded"))
     return jsonify(
         bridge=True, agent_type=_cfg_agent(),
         tts=bool(tts), tts_ready=bool(tts and tts.get("loaded")),
-        stt=bool(stt), stt_ready=bool(stt and stt.get("loaded")),
+        stt=stt_alive, stt_ready=stt_loaded,
+        stt_standby=stt_alive and not stt_loaded,   # 서버 ○ 모델 미로드: 대기 상태
         connector=bool(conn), agent_connected=bool(conn and conn.get("connected")),
     )
 
@@ -303,6 +313,12 @@ def hermes_out():
     _ndata = len(payload.get("data", []))
     print(f"[hermes/out] 원문[{'태그O' if _lead_tag else '태그X→추론'}]: {content[:180]!r}"
           f"  →  감정beats={_emos} · data평면={_ndata}건", flush=True)
+    # [confirm] 태그가 있으면 고유 confirm_id를 생성해 pending 등록 → 프론트가 /confirm으로 결과 반환
+    if payload.get("context", {}).get("requires_confirmation"):
+        cid = uuid.uuid4().hex[:12]
+        payload["confirm_id"] = cid
+        _pending_confirms[cid] = True
+        print(f"[bridge] HITL 승인 대기 등록: confirm_id={cid}", flush=True)
     # agent beats color the mood; every performance carries the mood snapshot
     if MOOD:
         MOOD.on_beats(payload.get("dialogue", {}).get("beats"))
@@ -325,7 +341,6 @@ def hermes_in():
     if MOOD:
         r = MOOD.on_user_message(text)
         if r:
-            global _seq
             _seq += 1
             re_emo = P.canon(r["emotion"]) or "neutral"   # 반응 감정명을 활성 taxonomy로 정규화(옛 이름 안전)
             publish({"session_id": "mood", "seq": _seq,
@@ -372,6 +387,44 @@ def serve_file():
     if not (os.path.isfile(rp) and any(rp == b or rp.startswith(b + os.sep) for b in _FILE_BASES)):
         return jsonify(error="forbidden"), 403              # outbox 밖 = 차단
     return send_file(rp, as_attachment=True, download_name=os.path.basename(rp))
+
+@app.route("/file/upload", methods=["POST", "OPTIONS"])
+def file_upload():
+    """사용자가 첨부한 파일을 outbox(files/)에 저장하고 서빙 가능한 경로를 반환.
+    프론트엔드가 [[file:path|name]] 마커로 에이전트에게 전달한다."""
+    if request.method == "OPTIONS": return ("", 204)
+    from werkzeug.utils import secure_filename
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify(error="no file provided"), 400
+    fname = secure_filename(f.filename)
+    if not fname:
+        return jsonify(error="invalid filename"), 400
+    outbox = _FILE_BASES[-1]   # repo/files
+    os.makedirs(outbox, exist_ok=True)
+    dest = os.path.join(outbox, fname)
+    if os.path.exists(dest):   # 파일명 충돌 시 UUID prefix 붙임
+        dest = os.path.join(outbox, uuid.uuid4().hex[:8] + "_" + fname)
+    f.save(dest)
+    print(f"[bridge] 파일 업로드: {os.path.basename(dest)} ({os.path.getsize(dest)//1024}KB)", flush=True)
+    return jsonify(ok=True, path=dest, name=os.path.basename(dest))
+
+@app.route("/confirm", methods=["POST", "OPTIONS"])
+def confirm_hitl():
+    """HITL [confirm] 모달 결과 수신 — 프론트엔드가 승인/취소 후 호출.
+    결과를 에이전트에 자연어로 포워딩한다(연결된 경우)."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.get_json(force=True, silent=True) or {}
+    cid = (body.get("id") or "").strip()
+    approved = bool(body.get("approved"))
+    if not cid or cid not in _pending_confirms:
+        return jsonify(error="unknown confirm id"), 404
+    del _pending_confirms[cid]
+    # 에이전트로 자연어 결과 포워딩 (연결된 경우에만 전달, 미연결 시 조용히 무시)
+    result_text = "응, 진행해줘." if approved else "아니, 취소해줘."
+    _connector_forward(result_text)
+    print(f"[bridge] HITL confirm_id={cid}: {'approved' if approved else 'denied'}", flush=True)
+    return jsonify(ok=True, id=cid, approved=approved)
 
 @app.route("/events")
 def events():

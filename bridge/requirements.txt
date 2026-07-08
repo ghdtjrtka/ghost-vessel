@@ -1,0 +1,6 @@
+# bridge 서비스 의존성
+# pip install -r bridge/requirements.txt
+
+flask>=3.0
+werkzeug>=3.0
+websockets>=12.0

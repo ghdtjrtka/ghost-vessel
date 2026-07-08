@@ -1,0 +1,20 @@
+# tts 서비스 의존성
+# pip install -r tts/requirements.txt
+
+flask>=3.0
+werkzeug>=3.0
+
+# ── 로컬 모델 (선택) ──────────────────────────────────────
+# Qwen3-TTS (GPU, ~2.5GB): 앱 설정 메뉴의 '설치' 버튼 사용 권장
+#   pip install qwen-tts
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+# Piper TTS (CPU 경량): https://github.com/rhasspy/piper 에서 실행파일 다운로드
+
+# ── 클라우드 프리 (선택) ──────────────────────────────────
+# Edge TTS (Microsoft, 무료, 인터넷 필요):
+#   pip install edge-tts
+
+# ── 클라우드 유료 (선택) ─────────────────────────────────
+# ElevenLabs: API 키 환경변수 ELEVENLABS_API_KEY 설정만 하면 됨 (추가 패키지 없음)
+# OpenAI Compatible: API 키 또는 로컬 서버 URL 설정만 하면 됨 (추가 패키지 없음)

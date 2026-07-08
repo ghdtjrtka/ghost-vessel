@@ -98,7 +98,10 @@ KEYWORD_EMO = [
     ("curious", ("뭐지", "궁금", "왜")),
 ]
 _EMOJI_ANY = re.compile(
-    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF❤️‍⭐✨]")
+    # 표준 이모지 블록 + Variation Selector(FE00-FE0F) + ZWJ(200D)
+    # 한 단위로 먹어(+) 수량자: 국기/복합이모지 시퀀스도 통째로 제거
+    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF"
+    "\uFE00-\uFE0F\u200D\u20E3\u00A9\u00AE\u2122\u2764\u2B50\u2728]+")
 
 def strip_emojis(s):
     return re.sub(r"\s{2,}", " ", _EMOJI_ANY.sub("", s)).strip()
@@ -175,47 +178,55 @@ def canon(name):
 def parse(content, seq=0, session_id="hermes_local_01", output_mode="both"):
     data = []
     # 1) pull code blocks -> data (not spoken)
-    def code_repl(m):
-        data.append({"type":"code","lang":(m.group(1) or "text"),"content":m.group(2).rstrip()})
-        return " "
-    text = CODE.sub(code_repl, content)
-    # 2) pull file markers -> data
-    def file_repl(m):
-        path = m.group(1).strip(); name = (m.group(2) or path.split("/")[-1].split("\\")[-1]).strip()
-        data.append({"type":"file","path":path,"name":name})
-        return " "
-    text = FILE.sub(file_repl, text)
+    # voice_only 모드에서는 data 평면 파싱을 건너뜀 — TTS 텍스트만 생성하면 충분함
+    text = content
+    if output_mode != "voice_only":
+        def code_repl(m):
+            data.append({"type":"code","lang":(m.group(1) or "text"),"content":m.group(2).rstrip()})
+            return " "
+        text = CODE.sub(code_repl, text)
+        # 2) pull file markers -> data
+        def file_repl(m):
+            path = m.group(1).strip(); name = (m.group(2) or path.split("/")[-1].split("\\")[-1]).strip()
+            data.append({"type":"file","path":path,"name":name})
+            return " "
+        text = FILE.sub(file_repl, text)
     # 3) split into emotion BEATS: each [emo] starts a new (emotion, text) chunk.
+    #    data_only 모드는 beats 생성 및 음성 합성이 불필요 — neutral 하나로 축소
     #    The avatar performs beats in sequence (action+dialogue per fine emotion).
     confirm = False
-    segs = []                    # (emotion, intensity, raw_chunk)
-    cur_emo, cur_int = "neutral", None
-    last = 0
-    for m in TAG.finditer(text):
-        segs.append((cur_emo, cur_int, text[last:m.start()])); last = m.end()
-        low = m.group(1).strip().lower()
-        if low in ("confirm", "hitl"):
-            confirm = True
-        else:
-            c = canon(m.group(1))
-            if c: cur_emo, cur_int = c, (float(m.group(2)) if m.group(2) else None)
-    segs.append((cur_emo, cur_int, text[last:]))
-
-    beats = []
-    for emo, inten, chunk in segs:
-        if emo != "neutral":
-            t = strip_emojis(chunk).strip()               # explicit tag: keep, drop emojis
-            # 텍스트가 비어도 비트를 만든다 = 무음 제스처. LLM이 감정 뒤 액션을 조합할 수 있게
-            # (`[happy] 됐어! [dance]` → happy로 말한 뒤 dance 제스처만 무음 재생). 조합은 LLM 선택.
-            beats.append({"emotion": emo, "text": t,
-                          "intensity": round(inten if inten is not None else DEFAULT_INTENSITY, 2)})
-        else:
-            for e, t in _split_neutral(chunk):            # no tag: infer from emojis/keywords
-                if t:
-                    beats.append({"emotion": e, "text": t, "intensity": DEFAULT_INTENSITY})
-    if not beats:
+    if output_mode == "data_only":
         beats = [{"emotion": "neutral", "text": "", "intensity": DEFAULT_INTENSITY}]
-    full = " ".join(b["text"] for b in beats).strip()
+        full = ""
+    else:
+        segs = []                    # (emotion, intensity, raw_chunk)
+        cur_emo, cur_int = "neutral", None
+        last = 0
+        for m in TAG.finditer(text):
+            segs.append((cur_emo, cur_int, text[last:m.start()])); last = m.end()
+            low = m.group(1).strip().lower()
+            if low in ("confirm", "hitl"):
+                confirm = True
+            else:
+                c = canon(m.group(1))
+                if c: cur_emo, cur_int = c, (float(m.group(2)) if m.group(2) else None)
+        segs.append((cur_emo, cur_int, text[last:]))
+
+        beats = []
+        for emo, inten, chunk in segs:
+            if emo != "neutral":
+                t = strip_emojis(chunk).strip()               # explicit tag: keep, drop emojis
+                # 텍스트가 비어도 비트를 만든다 = 무음 제스처. LLM이 감정 뒤 액션을 조합할 수 있게
+                # (`[happy] 됐어! [dance]` → happy로 말한 뒤 dance 제스처만 무음 재생). 조합은 LLM 선택.
+                beats.append({"emotion": emo, "text": t,
+                              "intensity": round(inten if inten is not None else DEFAULT_INTENSITY, 2)})
+            else:
+                for e, t in _split_neutral(chunk):            # no tag: infer from emojis/keywords
+                    if t:
+                        beats.append({"emotion": e, "text": t, "intensity": DEFAULT_INTENSITY})
+        if not beats:
+            beats = [{"emotion": "neutral", "text": "", "intensity": DEFAULT_INTENSITY}]
+        full = " ".join(b["text"] for b in beats).strip()
 
     return {
         "session_id": session_id, "seq": seq,

@@ -7,7 +7,7 @@ serialize=True 라 서버의 FIFO 큐를 타고, 클라우드(elevenlabs/openai_
 무거운 임포트(torch/qwen)는 전부 load() 안에서 지연 로드 → 클라우드 프로바이더만 쓸 땐
 GPU/모델을 건드리지 않는다. API 키는 환경변수로만 받는다(설정 파일에 넣지 않음).
 """
-import io, os, sys, json, shutil
+import io, os, sys, json, shutil, atexit
 
 # 패키지(frozen)에선 GV_ROOT(런처 설정)/tts_config.json 우선.
 _CFG_DIR = os.environ.get("GV_ROOT") or (
@@ -34,7 +34,7 @@ DEFAULT_CONFIG = {
         },
         "piper": {"exe": "piper", "model": "", "speaker": ""},
         "edge": {"voice": "ko-KR-SunHiNeural", "rate": "+0%", "pitch": "+0Hz", "volume": "+0%"},
-        "melo": {"language": "KR", "speed": 1.0, "port": 8901},
+        "melo": {"language": "KR", "speed": 1.0, "port": 9100},  # 8901은 릴레이 커넥터 기본 포트와 충돌
     },
 }
 
@@ -522,14 +522,34 @@ class MeloTTS(BaseTTS):
         env["MELO_PORT"] = str(self._port())
         env["MELO_LANG"] = self.cfg.get("language", "KR")
         print("[tts] launching melo server (격리 venv) ...", flush=True)
-        MeloTTS._proc = subprocess.Popen([self._VENV_PY, self._SERVER], env=env, cwd=self._ENG_DIR)
-        for _ in range(120):                        # 최초 모델 로드 대기(최대 120s)
-            if self._reachable():
-                print("[tts] melo server ready", flush=True); return
-            if MeloTTS._proc.poll() is not None:
-                raise RuntimeError("MeloTTS 서버가 기동 중 종료됨(로그 확인)")
-            time.sleep(1)
-        raise RuntimeError("MeloTTS 서버 기동 시간 초과")
+        # Windows 백그라운드 창 생성 차단 + 자식 프로세스 그룹 분리
+        flags = 0x08000000
+        try:
+            MeloTTS._proc = subprocess.Popen([self._VENV_PY, self._SERVER], env=env, cwd=self._ENG_DIR, creationflags=flags)
+            # tts_server 종료 시 melo 프로세스 청소용 atexit 등록
+            def _cleanup_melo():
+                if MeloTTS._proc and MeloTTS._proc.poll() is None:
+                    print("[tts] cleaning up melo server process ...", flush=True)
+                    try:
+                        MeloTTS._proc.terminate()
+                        MeloTTS._proc.wait(timeout=3)
+                    except Exception:
+                        try: MeloTTS._proc.kill()
+                        except Exception: pass
+            atexit.register(_cleanup_melo)
+
+            for _ in range(120):                        # 최초 모델 로드 대기(최대 120s)
+                if self._reachable():
+                    print("[tts] melo server ready", flush=True); return
+                if MeloTTS._proc.poll() is not None:
+                    MeloTTS._proc = None
+                    raise RuntimeError("MeloTTS 서버가 기동 중 종료됨(로그 확인)")
+                time.sleep(1)
+            MeloTTS._proc = None
+            raise RuntimeError("MeloTTS 서버 기동 시간 초과")
+        except Exception as e:
+            MeloTTS._proc = None
+            raise e
 
     def synth(self, text, speaker=None, language=None):
         import urllib.request

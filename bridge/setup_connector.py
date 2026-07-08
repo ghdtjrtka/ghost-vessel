@@ -73,11 +73,13 @@ OPENCLAW_DEFAULT_PORT = 18790
 
 
 def load_cfg():
-    return json.load(open(CFG_PATH, encoding="utf-8"))
+    with open(CFG_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def save_cfg(cfg):
-    json.dump(cfg, open(CFG_PATH, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    with open(CFG_PATH, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 
 # ── WSL helpers ────────────────────────────────────────────────────────────
@@ -216,7 +218,7 @@ def write_openclaw_contract(dry: bool) -> str:
         if _OC_MARK_A in cur:
             import re as _re2
             new = _re2.sub(_re2.escape(_OC_MARK_A) + r".*?" + _re2.escape(_OC_MARK_B),
-                           block, cur, flags=_re2.S)
+                           lambda _m: block, cur, flags=_re2.S)
         else:
             new = (cur.rstrip() + "\n\n" if cur.strip() else "") + block + "\n"
         open(dest, "w", encoding="utf-8").write(new)

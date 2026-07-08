@@ -1,0 +1,12 @@
+# Ghost Vessel — 핵심 의존성
+# 각 서비스를 처음 실행하기 전에 한 번만 설치하면 됩니다.
+#
+#   pip install -r bridge/requirements.txt
+#   pip install -r tts/requirements.txt
+#   pip install -r stt/requirements.txt
+#
+# TTS/STT 로컬 모델(GPU)은 별도 설치 — 앱 설정 메뉴의 '설치' 버튼을 사용하거나
+# requirements 내 주석 확인 후 수동으로 설치하세요.
+
+flask>=3.0
+websockets>=12.0

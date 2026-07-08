@@ -20,6 +20,7 @@ MODEL_ID = os.environ.get("STT_MODEL", "small")
 LANG = os.environ.get("STT_LANG", "ko") or None      # "" -> autodetect
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024   # [G1] STT OOM 방지: 16MB 업로드 상한
 _model = None
 _lock = threading.Lock()
 
@@ -76,6 +77,8 @@ def cors(r):
 def health():
     return jsonify(ok=True, loaded=_model is not None, model=MODEL_ID)
 
+_transcribe_lock = threading.Lock()   # [T4] STT 전사 연산 병목 및 CPU 폭발 방지를 위한 직렬화 락
+
 @app.route("/stt", methods=["POST", "OPTIONS"])
 def stt():
     if request.method == "OPTIONS":
@@ -83,14 +86,17 @@ def stt():
     data = request.get_data()
     if not data or len(data) < 128:
         return jsonify(error="empty audio"), 400
+    if len(data) > 16 * 1024 * 1024:   # [G1] 명시적 크기 재확인 (MAX_CONTENT_LENGTH 우회 방어)
+        return jsonify(error="audio too large (max 16MB)"), 413
     m = get_model()
     # ?hint=여름 → 고유명(에이전트 이름 등) 인식 바이어스
     hint = (request.args.get("hint") or os.environ.get("STT_HINT") or "").strip()
-    segs, info = m.transcribe(io.BytesIO(data), language=LANG, beam_size=2,
-                              vad_filter=True,      # 서버측 2차 VAD (무음 컷)
-                              initial_prompt=(f"{hint}와의 대화." if hint else None),
-                              condition_on_previous_text=False)
-    text = " ".join(s.text.strip() for s in segs).strip()
+    with _transcribe_lock:
+        segs, info = m.transcribe(io.BytesIO(data), language=LANG, beam_size=2,
+                                  vad_filter=True,      # 서버측 2차 VAD (무음 컷)
+                                  initial_prompt=(f"{hint}와의 대화." if hint else None),
+                                  condition_on_previous_text=False)
+        text = " ".join(s.text.strip() for s in segs).strip()
     return jsonify(text=text, language=getattr(info, "language", LANG),
                    duration=round(getattr(info, "duration", 0.0), 2))
 
