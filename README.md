@@ -19,6 +19,8 @@ clips**, so the GPU stays free at runtime (no live inference).
 
 📦 **[Download for Windows](https://ghostvessel.space)** — dependency-free (no Python). Pay-what-you-want lifetime key (package from $5, preset from $1) at [ghostvessel.space](https://ghostvessel.space).
 
+📝 **[How it works — a writeup](https://dev.to/member_f0346839/i-replaced-the-chat-window-for-my-local-ai-agent-with-a-face-3e1k)** — the emotion-beat output contract, the no-runtime-GPU avatar, and hooking a real agent in as a connector.
+
 ## How it works
 
 ```
