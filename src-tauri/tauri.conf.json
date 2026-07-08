@@ -48,7 +48,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8898 http://127.0.0.1:8899 http://127.0.0.1:8900 http://127.0.0.1:8777 ws://127.0.0.1:18790 https://namanavi.com https://ghostvessel.space; media-src 'self' blob: http://127.0.0.1:8899 http://127.0.0.1:8900; img-src 'self' data: blob: http://127.0.0.1:8900; font-src 'self' data: http://127.0.0.1:8900 https://fonts.gstatic.com; frame-src 'none'; object-src 'none'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8898 http://127.0.0.1:8899 http://127.0.0.1:8900 http://127.0.0.1:8777 ws://127.0.0.1:18790 https://namanavi.com https://ghostvessel.space; media-src 'self' blob: http://127.0.0.1:8899 http://127.0.0.1:8900; img-src 'self' data: blob: http://127.0.0.1:8900; font-src 'self' data: http://127.0.0.1:8900 https://fonts.gstatic.com; frame-src 'none'; object-src 'none'",
+      "dangerousDisableAssetCspModification": ["script-src", "style-src"]
     }
   },
   "bundle": {
