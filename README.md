@@ -11,11 +11,11 @@ persistent **mood** that sinks when you scold it and brightens when you praise i
 states that breathe, blink, and sometimes rest their eyes — all from **pre-rendered
 clips**, so the GPU stays free at runtime (no live inference).
 
-## Demo (45s)
+## Demo
 
-[![Ghost Vessel demo — click to watch](docs/demo-poster.jpg)](https://github.com/ghdtjrtka/ghost-vessel/releases/download/v0.1.0/GhostVessel-demo-EN.mp4)
+![Ghost Vessel — Yeoreum performing a work loop while the agent runs a task](docs/hero.gif)
 
-▶ **[Watch the demo](https://github.com/ghdtjrtka/ghost-vessel/releases/download/v0.1.0/GhostVessel-demo-EN.mp4)** — emotion beats, the real Hermes slash menu, work loops, code cards, human-in-the-loop approval, and the floating monitor-resident windows.
+▶ **[Watch the full 45s demo with sound](https://github.com/ghdtjrtka/ghost-vessel/releases/download/v0.1.0/GhostVessel-demo-EN.mp4)** — emotion beats, the real Hermes slash menu, work loops, code cards, human-in-the-loop approval, and the floating monitor-resident windows.
 
 📦 **[Download for Windows](https://ghostvessel.space)** — dependency-free (no Python). Pay-what-you-want lifetime key (package from $5, preset from $1) at [ghostvessel.space](https://ghostvessel.space).
 
