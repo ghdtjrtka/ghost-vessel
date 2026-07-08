@@ -1,0 +1,14 @@
+Ghost Vessel — licensing scope
+================================
+
+The MIT License in ./LICENSE covers the ENGINE only: the application code,
+documentation, and the avatar template/skeleton.
+
+Avatar preset bundles (the .gvp files — expression/action video clips, images,
+fonts, and personas) are SEPARATE works. They are distributed under their own
+terms by their creators and are NOT covered by the MIT License. The bundled
+"Yeoreum" avatar and any commissioned/purchased avatars remain the property of
+their creators; buying or downloading one grants a personal-use license, not
+redistribution rights.
+
+You may build and freely share your own avatar bundles for the MIT engine.
