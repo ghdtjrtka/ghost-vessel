@@ -12,9 +12,16 @@ static CLICK_THROUGH: AtomicBool = AtomicBool::new(false);
 // The two floating windows this app manages.
 const WINDOWS: [&str; 2] = ["video", "chat"];
 
+// Frameless windows have no OS chrome — the chat header's ✕ calls this to quit the app.
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![quit_app])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
