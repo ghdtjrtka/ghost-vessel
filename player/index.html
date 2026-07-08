@@ -517,9 +517,10 @@ async function refreshTtsRuntime(){
 }
 // 프리페치: 감정 세그먼트가 재생되는 동안 합성을 미리 시작 → 체감 지연 절감
 function ttsFetch(text){ if(!voiceOn||!text) return null;
-  const v=(PRESET&&PRESET.voice)||{};
+  // 보이스·속도는 서버 config(설정 UI에서 변경·저장)가 소스. per-request로 프리셋 보이스를
+  // 강제하지 않는다(강제하면 설정 변경이 재생에 반영 안 됨). 프리셋 지정 보이스는 tts_config로.
   return fetch(TTS+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text,speaker:v.speaker,language:v.language})})
+      body:JSON.stringify({text})})
     .then(r=>{ if(!r.ok) throw 0; return r.blob(); }).then(b=>URL.createObjectURL(b))
     .catch(()=>null); }
 // A안: 문장 단위 청킹. RTF~2.8x가 하드 플로어라 '문장 내' 쪼개기는 오히려 갭을 만든다
