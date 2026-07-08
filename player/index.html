@@ -27,6 +27,8 @@
   body.sep .chat:hover{ opacity:1; }
   /* 대화 숨김 토글 (영통 화면에서 자막만 남기고 채팅 오버레이 끔) */
   body.nochat .chat{ display:none; }
+  /* 자막(대사 캡션) 끄기 — CC 버튼 */
+  body.nocap .cap{ display:none; }
 
   /* ── 분리 창 모드(?pane=video|chat): 각 패널이 별도 Tauri 창을 꽉 채움 ──
      프레임리스·투명 창 위에 둥근 패널 하나만 떠 보임(모니터 상주, 자유 배치). */
@@ -93,6 +95,12 @@
   .code pre{ margin:0; padding:11px; overflow-x:auto; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; }
   .file{ display:flex; align-items:center; gap:11px; max-width:74%; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:11px 13px; }
   .file .ic{ font-size:22px; } .file .fn{ font-size:13px; } .file a{ margin-left:auto; color:var(--accent); font-size:12px; text-decoration:none; border:1px solid var(--line); border-radius:9px; padding:5px 11px; }
+  /* 에이전트가 보낸 이미지/영상: 인라인 프리뷰 카드 */
+  .media{ max-width:82%; background:var(--panel2); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .media img,.media video{ display:block; width:100%; max-height:320px; object-fit:contain; background:#000; }
+  .media .mbar{ display:flex; align-items:center; gap:10px; padding:7px 11px; }
+  .media .fn{ font-size:12px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .media a{ margin-left:auto; color:var(--accent); font-size:12px; text-decoration:none; border:1px solid var(--line); border-radius:9px; padding:4px 10px; flex:0 0 auto; }
   .empty{ margin:auto; color:var(--dim); font-size:13px; text-align:center; }
   .typing{ align-self:flex-start; color:var(--dim); font-size:12px; padding:2px 6px; }
 
@@ -156,7 +164,7 @@
 <body>
   <!-- 영상 창 -->
   <div class="call">
-    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span><span class="mode xbtn" onclick="hideVideoWin()" data-i18n-title="hide_win" title="창 숨기기 (채팅 🎬로 복귀)">✕</span></div>
+    <div class="hd"><span class="dot" id="dot"></span><span class="nm" id="nameV">…</span><span class="st" id="stateLabel">온라인</span><span class="mode" id="capBtn" onclick="toggleCap()" data-i18n-title="cap_toggle" title="자막 켜기/끄기" style="font-size:10px;font-weight:700;letter-spacing:.4px">CC</span><span class="mode" id="chatBtn" onclick="toggleChat()" title="대화 표시/숨기기">💬</span><span class="mode" id="modeBtn" onclick="toggleMode()" data-i18n-title="sep" title="분리 / 합치기">⧉</span><span class="mode xbtn" onclick="hideVideoWin()" data-i18n-title="hide_win" title="창 숨기기 (채팅 🎬로 복귀)">✕</span></div>
     <div class="stage">
       <video id="vid" class="lyr" muted playsinline></video>
       <video id="vid2" class="lyr" muted playsinline style="opacity:0"></video>
@@ -318,7 +326,7 @@ const I18N={
     sys_linked:'연결됨', sys_demo:'미연결(데모)', gw_start:'게이트웨이 시작', gw_stop:'종료',
     mic_device:'마이크 장치', mic_default:'시스템 기본값', mic_grant:'장치 이름 표시 (권한 허용)',
     sep:'분리 / 합치기', resize:'드래그해서 크기조절', theme:'테마 · 언어', voice:'음성 켜기/끄기',
-    hide_win:'창 숨기기 (채팅 🎬로 복귀)', quit:'Ghost Vessel 종료',
+    hide_win:'창 숨기기 (채팅 🎬로 복귀)', quit:'Ghost Vessel 종료', cap_toggle:'자막 켜기/끄기',
     attach:'파일 첨부', skills:'스킬 (/)', send:'전송', mic:'음성 입력 (VAD)', input_ph:'메시지 입력…  ( / 스킬 )',
     empty:'대화를 시작하세요.<br>파일 첨부 📎 · 스킬 <b>/</b> · Enter 전송',
     confirm_yes:'응, 진행해', confirm_no:'아니, 취소', confirm_q:'진행할까요?',
@@ -335,7 +343,7 @@ const I18N={
     sys_linked:'linked', sys_demo:'demo', gw_start:'Start gateway', gw_stop:'Stop',
     mic_device:'Microphone', mic_default:'System default', mic_grant:'Show device names (grant permission)',
     sep:'Detach / Combine', resize:'Drag to resize', theme:'Theme · Language', voice:'Toggle voice',
-    hide_win:'Hide window (reopen via 🎬)', quit:'Quit Ghost Vessel',
+    hide_win:'Hide window (reopen via 🎬)', quit:'Quit Ghost Vessel', cap_toggle:'Toggle captions',
     attach:'Attach file', skills:'Skills (/)', send:'Send', mic:'Voice input (VAD)', input_ph:'Type a message…  ( / skills )',
     empty:'Start a conversation.<br>Attach 📎 · Skills <b>/</b> · Enter to send',
     confirm_yes:'Yes, go ahead', confirm_no:'No, cancel', confirm_q:'Proceed?',
@@ -542,7 +550,19 @@ function appendAgent(text){ if(!text)return; addRow('a', bubble(text)); }
 function renderData(items){ if(!items||!items.length)return; clearEmpty(); const stick=atBottom();
   for(const it of items){
     if(it.type==='code'){ const d=document.createElement('div'); d.className='code'; d.innerHTML=`<div class="bar">${esc(it.lang)}<button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.closest('.code').querySelector('pre').textContent)">복사</button></div><pre></pre>`; d.querySelector('pre').textContent=it.content; $('log').appendChild(d); }
-    else if(it.type==='file'){ const href=BRIDGE+'/file?path='+encodeURIComponent(it.path); const d=document.createElement('div'); d.className='file'; d.innerHTML=`<span class="ic">📄</span><span class="fn">${esc(it.name)}</span><a href="${esc(href)}" download>받기</a>`; $('log').appendChild(d); }
+    else if(it.type==='file'){ const href=BRIDGE+'/file?path='+encodeURIComponent(it.path);
+      const ext=String(it.name||it.path).split('.').pop().toLowerCase();
+      if(['png','jpg','jpeg','webp','gif','bmp','avif'].includes(ext)){        // 이미지: 인라인 프리뷰 + 받기
+        const d=document.createElement('div'); d.className='media';
+        d.innerHTML=`<img loading="lazy" alt=""><div class="mbar"><span class="fn">${esc(it.name)}</span><a href="${esc(href)}" download>받기</a></div>`;
+        d.querySelector('img').src=href; $('log').appendChild(d);
+      } else if(['mp4','webm','mov','m4v','ogg'].includes(ext)){               // 영상: 인라인 플레이어 + 받기
+        const d=document.createElement('div'); d.className='media';
+        d.innerHTML=`<video controls preload="metadata"></video><div class="mbar"><span class="fn">${esc(it.name)}</span><a href="${esc(href)}" download>받기</a></div>`;
+        d.querySelector('video').src=href; $('log').appendChild(d);
+      } else {
+        const d=document.createElement('div'); d.className='file'; d.innerHTML=`<span class="ic">📄</span><span class="fn">${esc(it.name)}</span><a href="${esc(href)}" download>받기</a>`; $('log').appendChild(d);
+      } }
     else { const d=document.createElement('div'); d.className='code'; d.innerHTML='<pre></pre>'; d.querySelector('pre').textContent=JSON.stringify(it,null,2); $('log').appendChild(d); }
   }
   if(stick)scroll();
@@ -638,6 +658,8 @@ function playTTS(urlP,text,fillerId){ return new Promise(async res=>{
 }); }
 function toggleVoice(){ voiceOn=!voiceOn; $('vt').textContent=voiceOn?'🔊':'🔇'; }
 function toggleChat(){ const off=document.body.classList.toggle('nochat'); const b=$('chatBtn'); if(b){ b.textContent=off?'🗨️':'💬'; b.style.opacity=off?'.45':''; } try{ localStorage.setItem('avatarNoChat', off?'1':''); }catch(e){} }
+// 자막(대사 캡션) 켜기/끄기 — 상태는 저장, 분리 창에서도 동일 동작
+function toggleCap(){ const off=document.body.classList.toggle('nocap'); const b=$('capBtn'); if(b) b.style.opacity=off?'.4':''; try{ localStorage.setItem('avatarNoCap', off?'1':''); }catch(e){} }
 
 // ── 퍼포먼스 재생: 행동/대화/데이터 3-플레인, 감정 비트 순차 ──
 let confirmCb=null, confirmId=null, playToken=0;
@@ -1270,6 +1292,7 @@ async function boot(){
   try{ applyTheme(localStorage.getItem('avatarTheme') || (PRESET&&PRESET.theme) || 'graphite'); }catch(e){ applyTheme('graphite'); }
   if(DO_CHAT){ if(!(await licenseGate())) return; }      // 첫 실행 키 게이트: chat/합본 창만(오픈엔진 통과). 상호작용이 chat에서 게이트되므로 video 창은 통과.
   try{ if(!PANE && localStorage.getItem('avatarNoChat')==='1') toggleChat(); }catch(e){}
+  try{ if(localStorage.getItem('avatarNoCap')==='1') toggleCap(); }catch(e){}
   applyLang();
   loadName();
   try{ setMood(await (await fetch(BRIDGE+'/mood')).json()); }catch(e){}
