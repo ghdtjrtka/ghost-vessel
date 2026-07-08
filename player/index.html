@@ -779,8 +779,14 @@ function applyTheme(id){ const t=THEMES.find(x=>x.id===id); if(!t)return; curThe
   try{ localStorage.setItem('avatarTheme',id); }catch(e){}
   document.querySelectorAll('.thememenu .sw').forEach(s=>s.classList.toggle('on', s.dataset.id===id)); }
 function buildThemeMenu(){ const m=$('thememenu'); if(m.childElementCount)return;
-  // 언어
-  const ll=document.createElement('div'); ll.className='lbl'; ll.textContent=t('language'); m.appendChild(ll);
+  // 언어 (+ 메뉴 닫기 ✕ — 바깥 클릭을 모르는 사용자용)
+  const ll=document.createElement('div'); ll.className='lbl'; ll.style.cssText='display:flex;align-items:center';
+  const lt=document.createElement('span'); lt.textContent=t('language'); ll.appendChild(lt);
+  const xc=document.createElement('span'); xc.textContent='✕';
+  xc.style.cssText='margin-left:auto;cursor:pointer;font-size:14px;opacity:.7;text-transform:none;letter-spacing:0';
+  xc.onmouseenter=()=>xc.style.opacity='1'; xc.onmouseleave=()=>xc.style.opacity='.7';
+  xc.onclick=(e)=>{ e.stopPropagation(); m.classList.remove('show'); };
+  ll.appendChild(xc); m.appendChild(ll);
   const lr=document.createElement('div'); lr.className='langrow';
   [['ko','한국어'],['en','English']].forEach(([code,label])=>{ const b=document.createElement('div'); b.className='langbtn'+(curLang===code?' on':''); b.textContent=label; b.onclick=()=>setLang(code); lr.appendChild(b); });
   m.appendChild(lr);
