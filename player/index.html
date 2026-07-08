@@ -482,7 +482,8 @@ async function pollStatus(){
   try{ SYS=await (await fetch(BRIDGE+'/status_all')).json(); }catch(e){ SYS=null; }
   if(!esConnected){ setLive('live_off'); }
   else if(SYS&&SYS.agent_connected){
-    setLive('live_on','● 온라인 · '+(SYS.agent_type==='openclaw'?'OpenClaw':'Hermes')+' 연결됨'); }
+    { const ag=(SYS.agent_type==='openclaw'?'OpenClaw':'Hermes');   // 현재 언어로 표기(하드코딩 한글 제거)
+      setLive('live_on', curLang==='en' ? ('● Online · '+ag+' connected') : ('● 온라인 · '+ag+' 연결됨')); } }
   else setLive('live_demo');
   if(stateKey==='online') _dotByAgent();
   renderSys();
