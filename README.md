@@ -74,17 +74,27 @@ pixels — photoreal, 2D anime, a 3D render, pixel art, an abstract shape. You c
 an existing **Live2D or VRM model and pre-render its expressions into clips**; a rig-based
 shell can't do the reverse.
 
-**Make your own — free, local, no subscription.** The bundle/filename spec is in
+**Make your own.** The bundle/filename spec is in
 [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md), and `tools/` ships the authoring
 toolchain so you don't have to solve the fiddly parts yourself:
 
 1. One neutral, front-facing still of your character.
-2. Drive it into expression clips with **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)**
-   — runs locally on a consumer GPU, retargets your still using driving videos. (Any
-   image-to-video model works too if you'd rather go faster; the engine only needs MP4s.)
-3. **Cut a take into per-emotion segments** — `tools/cut_emotions.py --video take.mp4 --strip`
-   prints a contact sheet so you can spot the neutral valleys, then
-   `--cuts 3.4,6.7 --emotions shy,happy,surprise` slices and web-encodes them.
+
+2. **Animate it into expression clips.** Two routes — the engine only needs MP4s, so either
+   is fine:
+
+   - **Image-to-video model** (Gemini/Veo, Higgsfield, …) — this is how the demo avatar's
+     clips were made. Prompt one take to run several expressions in a row
+     (`neutral → A → neutral → B → neutral → C → neutral`); costs credits, no local GPU.
+   - **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)** — **free and local**, runs on
+     a consumer GPU and retargets your still using driving videos. One driving clip gives you
+     one expression, so you skip step 3 entirely. (This project's earlier expression library
+     was built this way; it works.)
+
+3. **Cut a multi-emotion take into segments** — *i2v route only; LivePortrait already gives you
+   separate clips.* `tools/cut_emotions.py --video take.mp4 --strip` prints a contact sheet so
+   you can spot the neutral valleys, then `--cuts 3.4,6.7 --emotions shy,happy,surprise` slices
+   and web-encodes them.
 4. **Build a seamless idle loop** — `tools/build_idle_loop.py --video idle.mp4 --out presets/<id>/avatar`.
    Seamless looping is the part that actually takes effort, so this does it for you: it runs
    MediaPipe over the take, finds the blink minima, and picks the blink→blink window that
