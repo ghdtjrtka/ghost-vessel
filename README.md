@@ -69,15 +69,29 @@ no code runs, so installing one is safe. Presets are **folder-mapped**: drop a f
 of clips named by convention (`happy.mp4`, `angry.mp4`, `idle.mp4`, …) into `presets/`
 and the engine maps them automatically — the folder name is the avatar's name.
 
-- **Get the demo avatar (Yeoreum)** — pay-what-you-want: full package from $5, preset (.gvp) only from $1 — at [ghostvessel.space](https://ghostvessel.space).
-- **Commission a custom avatar** — made to order: open an issue or ask at [ghostvessel.space](https://ghostvessel.space).
-- **Make your own** — the full, reproducible build method (neutral still → image-to-video
-  expressions → loop-cut segments → package; LivePortrait works as a free local alternative)
-  and the bundle/filename spec are in
-  [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md). Keep it SFW; own your likeness rights.
+**Any art style works.** The engine plays video clips and doesn't care what produced the
+pixels — photoreal, 2D anime, a 3D render, pixel art, an abstract shape. You can even take
+an existing **Live2D or VRM model and pre-render its expressions into clips**; a rig-based
+shell can't do the reverse.
+
+**Make your own — free, local, no subscription.** The reproducible build method and the
+bundle/filename spec are in [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md):
+
+1. One neutral, front-facing still of your character.
+2. Drive it into expression clips with **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)**
+   — runs locally on a consumer GPU, retargets your still using driving videos. (Any
+   image-to-video model works too if you'd rather go faster; the engine only needs MP4s
+   named by emotion.)
+3. Loop-cut the segments and drop the folder into `presets/`.
+
+Keep it SFW; own your likeness rights.
+
+Prefer to skip the production step? **[Get the demo avatar (Yeoreum)](https://ghostvessel.space)**
+(pay-what-you-want) or **commission a custom one** — open an issue or ask at
+[ghostvessel.space](https://ghostvessel.space).
 
 The repo ships **engine only** — no avatar bundled (`presets/_template/` is a starter
-skeleton). Bring your own, buy one, or commission one.
+skeleton).
 
 ## License
 
