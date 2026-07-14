@@ -20,7 +20,13 @@ segments/manifest.json*
 segments/*.bak
 EXPRESSION_CATALOG.md
 AVATAR_AGENT_SPEC.md
-tools/
+tools/*
+# …except the preset-authoring toolchain: mechanics are open, art direction is not.
+# These three are what a builder needs (cut -> seamless loop -> validate); the tuned
+# recipes/prompts that make a *specific* avatar look good stay private.
+!tools/cut_emotions.py
+!tools/build_idle_loop.py
+!tools/validate_preset.py
 docs/PRESET_BUILD.md
 tts/tts_config.json
 tts_config.json

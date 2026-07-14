@@ -74,17 +74,27 @@ pixels — photoreal, 2D anime, a 3D render, pixel art, an abstract shape. You c
 an existing **Live2D or VRM model and pre-render its expressions into clips**; a rig-based
 shell can't do the reverse.
 
-**Make your own — free, local, no subscription.** The reproducible build method and the
-bundle/filename spec are in [`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md):
+**Make your own — free, local, no subscription.** The bundle/filename spec is in
+[`docs/PRESET_FORMAT.md`](docs/PRESET_FORMAT.md), and `tools/` ships the authoring
+toolchain so you don't have to solve the fiddly parts yourself:
 
 1. One neutral, front-facing still of your character.
 2. Drive it into expression clips with **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)**
    — runs locally on a consumer GPU, retargets your still using driving videos. (Any
-   image-to-video model works too if you'd rather go faster; the engine only needs MP4s
-   named by emotion.)
-3. Loop-cut the segments and drop the folder into `presets/`.
+   image-to-video model works too if you'd rather go faster; the engine only needs MP4s.)
+3. **Cut a take into per-emotion segments** — `tools/cut_emotions.py --video take.mp4 --strip`
+   prints a contact sheet so you can spot the neutral valleys, then
+   `--cuts 3.4,6.7 --emotions shy,happy,surprise` slices and web-encodes them.
+4. **Build a seamless idle loop** — `tools/build_idle_loop.py --video idle.mp4 --out presets/<id>/avatar`.
+   Seamless looping is the part that actually takes effort, so this does it for you: it runs
+   MediaPipe over the take, finds the blink minima, and picks the blink→blink window that
+   maximizes eyes-open time and pose match — so the loop's seam lands on a closed eye and is
+   invisible. Falls back to pingpong when no clean blink pair exists, and records the
+   head-frontal "settle times" the player uses to time expression reveals.
+5. **Check it** — `tools/validate_preset.py presets/<id>` gates on structure, asset
+   integrity, and emotion coverage. Exit 0 = shippable.
 
-Keep it SFW; own your likeness rights.
+Drop the folder into `presets/` and you're done. Keep it SFW; own your likeness rights.
 
 Prefer to skip the production step? **[Get the demo avatar (Yeoreum)](https://ghostvessel.space)**
 (pay-what-you-want) or **commission a custom one** — open an issue or ask at
