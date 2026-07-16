@@ -1,0 +1,142 @@
+{
+  "version": "1.0.0",
+  "segments": [
+    {
+      "name": "happy",
+      "file": "segments/happy.mp4",
+      "emotion": "happy",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "smile",
+      "file": "segments/smile.mp4",
+      "emotion": "smile",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "surprise",
+      "file": "segments/surprise.mp4",
+      "emotion": "surprise",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "concerned",
+      "file": "segments/concerned.mp4",
+      "emotion": "concerned",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "angry",
+      "file": "segments/angry.mp4",
+      "emotion": "angry",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "downcast",
+      "file": "segments/downcast.mp4",
+      "emotion": "downcast",
+      "kind": "transition",
+      "group": "emotion",
+      "frames": 143,
+      "fps": 24,
+      "intensity": 0.85,
+      "loop_style": "mirrored"
+    },
+    {
+      "name": "alive_idle",
+      "file": "segments/alive_idle.mp4",
+      "emotion": "neutral",
+      "kind": "loop",
+      "group": "alive",
+      "frames": 44,
+      "fps": 24.0,
+      "loop_style": "straight_blink_aligned",
+      "settle_times": [
+        0.75,
+        1.375,
+        1.75
+      ]
+    },
+    {
+      "name": "alive_idle_positive",
+      "file": "segments/alive_idle_positive.mp4",
+      "emotion": "neutral",
+      "kind": "mood_idle",
+      "group": "mood",
+      "frames": 119,
+      "fps": 24.0,
+      "loop_style": "pingpong_blink_aligned",
+      "settle_times": [
+        0.833,
+        2.042,
+        2.25,
+        2.333,
+        2.625,
+        2.708,
+        2.917,
+        4.125
+      ],
+      "mood": "positive"
+    },
+    {
+      "name": "alive_idle_negative",
+      "file": "segments/alive_idle_negative.mp4",
+      "emotion": "neutral",
+      "kind": "mood_idle",
+      "group": "mood",
+      "frames": 119,
+      "fps": 24.0,
+      "loop_style": "pingpong_blink_aligned",
+      "settle_times": [
+        0.917,
+        1.083,
+        1.25,
+        1.667,
+        2.042,
+        2.167,
+        2.792,
+        2.917,
+        3.292,
+        3.708,
+        3.875,
+        4.042
+      ],
+      "mood": "negative"
+    },
+    {
+      "name": "talking_calm_loop",
+      "file": "segments/talking_calm_loop.mp4",
+      "emotion": "neutral",
+      "kind": "loop",
+      "group": "alive",
+      "frames": 241,
+      "fps": 24,
+      "loop_style": "mirrored"
+    }
+  ]
+}

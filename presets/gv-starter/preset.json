@@ -1,0 +1,24 @@
+{
+  "id": "gv-starter",
+  "name": "하늘",
+  "name_en": "Haneul",
+  "version": "1.0.0",
+  "author": "Ghost Vessel",
+  "sfw": true,
+  "private": false,
+  "engine": ">=0.1.0",
+  "description": "Free starter avatar — a 2D anime vessel so you can run Ghost Vessel the moment you clone it. Built entirely with free local tools (Animagine XL + Wan i2v).",
+
+  "avatar": {
+    "source": "avatar/source.png",
+    "manifest": "avatar/manifest.json",
+    "segments_base": "avatar/segments"
+  },
+
+  "theme": { "id": "azure" },
+
+  "voice": { "engine": "edge", "speaker": "en-US-AvaNeural", "language": "English", "sample_rate": 24000 },
+
+  "role": "role.md",
+  "emotion_map": "emotion_map.json"
+}

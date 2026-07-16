@@ -8,6 +8,15 @@ mina-default/
 *.woff
 *.ttf
 *.otf
+
+# …except the free starter avatar, which ships WITH the engine so that cloning the
+# repo gives you something that actually runs. Built with free local tools; it is the
+# one bundle we intentionally publish.
+!gv-starter/
+!gv-starter/avatar/
+!gv-starter/avatar/segments/
+!gv-starter/avatar/segments/*.mp4
+!gv-starter/avatar/source.png
 # keep the template + docs tracked (active.txt is install-local → not tracked;
 # the loader defaults to _template when it's absent)
 !_template/

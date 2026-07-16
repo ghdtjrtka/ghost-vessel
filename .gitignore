@@ -48,6 +48,8 @@ stt/venv/
 presets/active.txt
 presets/*/state.json
 presets/*/manifest.json
+# the free starter's manifest ships with it (it's part of the bundle, not private craft)
+!presets/gv-starter/avatar/manifest.json
 bridge/connector_config.json
 dist/
 

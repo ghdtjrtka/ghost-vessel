@@ -52,7 +52,8 @@ video window ◄── performance player ◄── parser (3 planes) ◄─┘
 ## Quickstart (Windows)
 
 1. Prereqs: Python 3.11, an agent (optional — demo mode works without one).
-2. Get an avatar preset → drop its folder into `presets/`, set `presets/active.txt`.
+2. Pick an avatar: the bundled **Haneul** works out of the box — `echo gv-starter > presets/active.txt`.
+   (Bringing your own? Drop its folder into `presets/` and name it there instead.)
 3. Link your agent: `python bridge/setup_connector.py` (picks Hermes/OpenClaw,
    Windows/WSL2, writes the connection + injects the avatar output contract into the
    agent's prompt, scoped to this channel).
@@ -69,6 +70,13 @@ no code runs, so installing one is safe. Presets are **folder-mapped**: drop a f
 of clips named by convention (`happy.mp4`, `angry.mp4`, `idle.mp4`, …) into `presets/`
 and the engine maps them automatically — the folder name is the avatar's name.
 
+**A free starter avatar ships with the engine**, so cloning the repo gives you something
+that actually runs: **Haneul** (`presets/gv-starter/`) — 2D anime, 6 emotion beats, a
+blink-aligned idle, mood-based resting idles, and a talking loop. She was built end to end
+with **free local tools** (Animagine XL for the source still → HunyuanVideo 1.5 image-to-video
+for the clips → the `tools/` scripts below), which is the same path this README asks you to
+walk — so the method is proven, not just documented.
+
 **Any art style works.** The engine plays video clips and doesn't care what produced the
 pixels — photoreal, 2D anime, a 3D render, pixel art, an abstract shape. You can even take
 an existing **Live2D or VRM model and pre-render its expressions into clips**; a rig-based
@@ -80,21 +88,29 @@ toolchain so you don't have to solve the fiddly parts yourself:
 
 1. One neutral, front-facing still of your character.
 
-2. **Animate it into expression clips.** Two routes — the engine only needs MP4s, so either
-   is fine:
+2. **Animate it into expression clips** with an image-to-video model. The engine only needs
+   MP4s, so any i2v model works — but the choice matters more than you'd think:
 
-   - **Image-to-video model** (Gemini/Veo, Higgsfield, …) — this is how the demo avatar's
-     clips were made. Prompt one take to run several expressions in a row
-     (`neutral → A → neutral → B → neutral → C → neutral`); costs credits, no local GPU.
-   - **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)** — **free and local**, runs on
-     a consumer GPU and retargets your still using driving videos. One driving clip gives you
-     one expression, so you skip step 3 entirely. (This project's earlier expression library
-     was built this way; it works.)
+   - **[HunyuanVideo 1.5](https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged)
+     (480p i2v, step-distilled) — free, local, and what the starter avatar was built with.**
+     Runs on a 12GB card at ~170s per 5-second clip. It's the smallest model we found that
+     actually renders *subtle* expressions — smaller video models (we tried Wan 2.2 5B) will
+     happily do an open-mouthed grin but render "concerned" and "angry" as a blank neutral face.
+   - **Cloud i2v** (Gemini/Veo, Higgsfield, …) also works and needs no GPU — the paid Yeoreum
+     avatar's clips were made this way. Costs credits.
+   - **[LivePortrait](https://github.com/KwaiVGI/LivePortrait)** is a lighter local option that
+     retargets driving videos onto your still, but it copies a real face's motion rather than
+     acting your prompt, and it can get uncanny on stylised art.
 
-3. **Cut a multi-emotion take into segments** — *i2v route only; LivePortrait already gives you
-   separate clips.* `tools/cut_emotions.py --video take.mp4 --strip` prints a contact sheet so
-   you can spot the neutral valleys, then `--cuts 3.4,6.7 --emotions shy,happy,surprise` slices
-   and web-encodes them.
+   Prompt the whole arc — *"calm neutral face at first, then <expression>, then returns to the
+   neutral calm expression"* + *"static camera, fixed framing, only her face changes"* — and
+   describe expressions **physically** ("eyebrows slant down into a hard V"), not by label.
+   Don't put "extreme expression" in the negative prompt; it flattens every expression you asked for.
+
+3. **Cut a multi-emotion take into segments** — *only if your model packs several expressions
+   into one take (cloud i2v often does).* `tools/cut_emotions.py --video take.mp4 --strip` prints
+   a contact sheet so you can spot the neutral valleys, then `--cuts 3.4,6.7 --emotions
+   shy,happy,surprise` slices and web-encodes them. One-emotion-per-clip? Skip this step.
 4. **Build a seamless idle loop** — `tools/build_idle_loop.py --video idle.mp4 --out presets/<id>/avatar`.
    Seamless looping is the part that actually takes effort, so this does it for you: it runs
    MediaPipe over the take, finds the blink minima, and picks the blink→blink window that
@@ -106,12 +122,19 @@ toolchain so you don't have to solve the fiddly parts yourself:
 
 Drop the folder into `presets/` and you're done. Keep it SFW; own your likeness rights.
 
-Prefer to skip the production step? **[Get the demo avatar (Yeoreum)](https://ghostvessel.space)**
-(pay-what-you-want) or **commission a custom one** — open an issue or ask at
-[ghostvessel.space](https://ghostvessel.space).
+Two traps worth knowing, since `presets/gv-starter/` is a worked example of both:
 
-The repo ships **engine only** — no avatar bundled (`presets/_template/` is a starter
-skeleton).
+- **Your i2v model will probably ignore "then returns to neutral"** and just hold the
+  expression to the last frame — which makes the cut back to idle jump. Trim at the peak and
+  mirror the clip; the expression forming, reversed, reads as the expression relaxing.
+- **`emotion_map.json` needs an `axis`** (`{emotion: {valence, arousal}}`). It's what the mood
+  tracker reads — **without it every emotion scores valence 0 and the whole mood/affinity
+  system silently does nothing.** Same for `reactions`: the defaults name emotions
+  (`excited`, `wince`, `frown_subtle`) your preset may not ship, so remap them to yours.
+
+Prefer to skip the production step? **[Get the demo avatar (Yeoreum)](https://ghostvessel.space)**
+— photoreal, 16 emotions, pay-what-you-want — or **commission a custom one** (open an issue or
+ask at [ghostvessel.space](https://ghostvessel.space)).
 
 ## License
 

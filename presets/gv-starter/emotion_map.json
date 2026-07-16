@@ -1,0 +1,55 @@
+{
+  "_comment": "Starter emotion map. 'emotions' must match the segment emotion names in avatar/manifest.json. 'axis' feeds the mood tracker (valence drives the short-term mood EMA); 'reactions' must only name emotions this preset actually ships; 'emoji'/'keywords' infer an emotion when the agent emits no [tag].",
+  "emotions": ["happy", "smile", "surprise", "concerned", "angry", "downcast", "neutral"],
+
+  "axis": {
+    "happy":     { "valence":  0.80, "arousal": 0.70 },
+    "smile":     { "valence":  0.50, "arousal": 0.30 },
+    "surprise":  { "valence":  0.10, "arousal": 0.90 },
+    "concerned": { "valence": -0.30, "arousal": 0.50 },
+    "angry":     { "valence": -0.70, "arousal": 0.80 },
+    "downcast":  { "valence": -0.70, "arousal": 0.20 },
+    "neutral":   { "valence":  0.00, "arousal": 0.20 }
+  },
+
+  "bases": {
+    "positive": "alive_idle_positive",
+    "negative": "alive_idle_negative"
+  },
+
+  "reactions": {
+    "praise_strong": "happy",
+    "praise_mild":   "smile",
+    "scold_strong":  "downcast",
+    "scold_mild":    "concerned"
+  },
+
+  "aliases": {
+    "joy": "happy", "excited": "happy", "glad": "happy",
+    "sad": "downcast", "disappointed": "downcast", "wince": "downcast",
+    "shocked": "surprise", "surprised": "surprise",
+    "worried": "concerned", "confused": "concerned", "thinking": "concerned",
+    "frown_subtle": "concerned", "skeptical": "concerned",
+    "annoyed": "angry", "irritated": "angry",
+    "working": "concerned"
+  },
+
+  "emoji": {
+    "happy": "😊😍💖👍🎉✨",
+    "smile": "🙂😌",
+    "surprise": "😮😲❗",
+    "concerned": "🤔😟",
+    "angry": "😠😤",
+    "downcast": "😢😔🥺"
+  },
+
+  "keywords": [
+    { "emotion": "happy",     "words": ["thanks", "great", "awesome", "done", "success", "passed"] },
+    { "emotion": "concerned", "words": ["hmm", "careful", "warning", "not sure", "checking"] },
+    { "emotion": "downcast",  "words": ["sorry", "failed", "error", "couldn't"] },
+    { "emotion": "surprise",  "words": ["whoa", "wait", "unexpected"] }
+  ],
+
+  "labels": {},
+  "default_intensity": 0.85
+}
