@@ -208,6 +208,24 @@ def list_presets():
                 pass
         out.append({"id": name, "dir": name, "name": disp, "sfw": sfw,
                     "template": name.startswith("_")})
+    # 팩(.gvp)도 프리셋이다 — 위 루프는 폴더만 훑으므로 여기서 합친다. 패키지 배포본은
+    # 유료 아바타를 .gvp로 싣기 때문에, 빠뜨리면 목록에 폴더 프리셋만 보여 되돌아갈 수 없다.
+    seen = {p["id"] for p in out}
+    for fn in sorted(os.listdir(PRESETS_DIR)):
+        if not fn.endswith(".gvp"):
+            continue
+        pid = fn[:-4]
+        if pid in seen:
+            continue
+        disp, sfw = pid, True
+        try:
+            files = _load_pack(pid) or {}
+            mj = json.loads((files.get("preset.json") or b"{}").decode("utf-8"))
+            disp = mj.get("name", pid); sfw = mj.get("sfw", True)
+        except Exception:
+            pass
+        out.append({"id": pid, "dir": pid, "name": disp, "sfw": sfw,
+                    "template": False, "packed": True})
     return out
 
 
