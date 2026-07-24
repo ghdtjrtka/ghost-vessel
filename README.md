@@ -17,7 +17,13 @@ clips**, so the GPU stays free at runtime (no live inference).
 
 ▶ **[Watch the full 45s demo with sound](https://github.com/ghdtjrtka/ghost-vessel/releases/download/v0.1.0/GhostVessel-demo-EN.mp4)** — emotion beats, the real Hermes slash menu, work loops, code cards, human-in-the-loop approval, and the floating monitor-resident windows.
 
-📦 **[Download for Windows](https://ghostvessel.space)** — dependency-free (no Python). Pay-what-you-want lifetime key (package from $5, preset from $1) at [ghostvessel.space](https://ghostvessel.space).
+> The avatar above is **Yeoreum**, a photoreal preset sold separately. Cloning this repo gets
+> you **[Haneul](#avatars-presets)** — a free 2D starter avatar that ships with the engine, so
+> it runs the moment you clone it.
+
+📦 **[Download for Windows](https://ghostvessel.space)** — dependency-free (no Python), ships with
+both avatars. Pay-what-you-want lifetime key (package from $5, preset from $1) at
+[ghostvessel.space](https://ghostvessel.space).
 
 📝 **[How it works — a writeup](https://dev.to/member_f0346839/i-replaced-the-chat-window-for-my-local-ai-agent-with-a-face-3e1k)** — the emotion-beat output contract, the no-runtime-GPU avatar, and hooking a real agent in as a connector.
 
@@ -72,10 +78,23 @@ and the engine maps them automatically — the folder name is the avatar's name.
 
 **A free starter avatar ships with the engine**, so cloning the repo gives you something
 that actually runs: **Haneul** (`presets/gv-starter/`) — 2D anime, 6 emotion beats, a
-blink-aligned idle, mood-based resting idles, and a talking loop. She was built end to end
-with **free local tools** (Animagine XL for the source still → HunyuanVideo 1.5 image-to-video
-for the clips → the `tools/` scripts below), which is the same path this README asks you to
-walk — so the method is proven, not just documented.
+blink-aligned idle, mood-based resting idles, and a talking loop.
+
+<img src="docs/starter.gif" width="280" align="right" alt="Haneul, the bundled starter avatar, cycling through happy / surprise / angry / downcast">
+
+She was built end to end with **free local tools** — [Animagine XL](https://huggingface.co/cagliostrolab/animagine-xl-4.0)
+for the neutral source still, [HunyuanVideo 1.5](https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged)
+(480p i2v, step-distilled) for the clips, then the `tools/` scripts below to loop and validate
+them. That's the same path this README asks you to walk, on one 12GB card, with no paid
+service anywhere in it — so the method is demonstrated rather than just described.
+
+The clip on the right is her actual `happy` / `surprise` / `angry` / `downcast` segments,
+straight out of `presets/gv-starter/avatar/segments/`.
+
+<br clear="right">
+
+The demo at the top of this README is **Yeoreum**, a photoreal avatar sold separately —
+different tier, same engine. Nothing in the engine treats them differently.
 
 **Any art style works.** The engine plays video clips and doesn't care what produced the
 pixels — photoreal, 2D anime, a 3D render, pixel art, an abstract shape. You can even take
