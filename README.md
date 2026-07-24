@@ -157,5 +157,13 @@ ask at [ghostvessel.space](https://ghostvessel.space)).
 
 ## License
 
-Engine: **MIT** (see `LICENSE`). Presets are separately licensed by their creators.
+**Everything in this repository is MIT** (see `LICENSE`) — the engine, the `tools/`
+scripts, the docs, and the bundled Haneul starter avatar. Clone it and it's yours,
+batteries included.
+
+The one exception isn't in the repo: **Yeoreum**, the photoreal avatar sold at
+[ghostvessel.space](https://ghostvessel.space), is a commissioned likeness and ships
+under its own personal-use license — as does any third-party preset you install from
+elsewhere.
+
 Open-sourced in donation-ware spirit — issues / PRs welcome. 🛠️
